@@ -7,6 +7,7 @@ import { Chat } from "./Chat";
 import { HistoryMenu } from "./HistoryMenu";
 import { WebPreview } from "./WebPreview";
 import { VideoStage } from "./VideoStage";
+import { WebStage } from "./WebStage";
 import { ShareDialog } from "./ShareDialog";
 import { Narration } from "./Narration";
 
@@ -143,10 +144,10 @@ export function Studio(props: {
     );
   }
 
-  const listLabel = manifest.kind === "lab" ? "Sections" : "Scenes";
+  const isLab = manifest.kind === "lab";
 
   return (
-    <div className="grid h-full" style={{ gridTemplateColumns: `${layout.left}px 0px minmax(0,1fr) 0px ${layout.right}px` }}>
+    <div className="grid h-full" style={{ gridTemplateColumns: `${isLab ? 0 : layout.left}px 0px minmax(0,1fr) 0px ${layout.right}px` }}>
       {actionsHost &&
         createPortal(
           <>
@@ -158,8 +159,8 @@ export function Studio(props: {
           actionsHost,
         )}
 
-      <aside className="overflow-auto py-3.5 pl-3.5 pr-2.5">
-        <h3 className="serif mx-1 mb-2.5 mt-0 text-[19px]">{listLabel}</h3>
+      <aside className="overflow-auto py-3.5 pl-3.5 pr-2.5" hidden={isLab}>
+        <h3 className="serif mx-1 mb-2.5 mt-0 text-[19px]">Scenes</h3>
         {scenes.length === 0 && (
           <div className="mx-1 text-[12.5px] leading-snug text-muted">
             {p.busy ? "The assistant is sketching the first draft…" : "Nothing here yet. Describe what you want in the assistant panel."}
@@ -173,10 +174,13 @@ export function Studio(props: {
             style={activeScene?.id === s.id ? { background: "#fff", boxShadow: "var(--shadow-1)" } : undefined}
           >
             <span
-              className="grid aspect-video w-[54px] flex-none place-items-center rounded-md bg-stage font-mono text-[11px] text-white/70"
-              style={activeScene?.id === s.id ? { boxShadow: "0 0 0 2px var(--color-accent)" } : undefined}
+              className="relative grid aspect-video w-[64px] flex-none place-items-center overflow-hidden rounded-md bg-stage bg-cover bg-center font-mono text-[11px] text-white/70"
+              style={{
+                ...(activeScene?.id === s.id ? { boxShadow: "0 0 0 2px var(--color-accent)" } : {}),
+                ...(s.thumbUrl ? { backgroundImage: `url("${s.thumbUrl}")` } : {}),
+              }}
             >
-              {i + 1}
+              {s.thumbUrl ? <i className="absolute bottom-0.5 left-1 not-italic text-[10px] font-semibold text-white [text-shadow:0_1px_3px_#000]">{i + 1}</i> : i + 1}
             </span>
             <span className="min-w-0">
               <b className="block truncate text-[12.5px] font-medium leading-tight">{s.title}</b>
@@ -188,7 +192,7 @@ export function Studio(props: {
           </button>
         ))}
       </aside>
-      <Splitter side="left" onDrag={(dx) => resize("left", dx)} onReset={() => resetSide("left")} />
+      {isLab ? <div /> : <Splitter side="left" onDrag={(dx) => resize("left", dx)} onReset={() => resetSide("left")} />}
 
       <section className="min-h-0 min-w-0">
         {manifest.kind === "video" ? (
@@ -201,13 +205,23 @@ export function Studio(props: {
             onSelect={setSelection}
             onActiveScene={setSceneId}
           />
+        ) : manifest.kind === "web" ? (
+          <WebStage
+            projectId={manifest.id}
+            revision={p.revision}
+            busy={p.busy}
+            scene={activeScene}
+            scenes={scenes}
+            selection={selection}
+            onSelect={(part, info) => setSelection(part ? { part, kind: info?.tag, sceneId: activeScene?.id } : null)}
+            onActiveScene={setSceneId}
+            onThumbnails={() => void p.reload()}
+          />
         ) : (
           <WebPreview
             projectId={manifest.id}
-            kind={manifest.kind}
             revision={p.revision}
             busy={p.busy}
-            sceneId={manifest.kind === "web" ? activeScene?.id : undefined}
             onSelect={(part, info) =>
               setSelection(part ? { part, kind: info?.tag, sceneId: activeScene?.id } : null)
             }
@@ -225,7 +239,7 @@ export function Studio(props: {
         busy={p.busy}
         error={p.error}
         selection={selection}
-        sceneLabel={activeScene ? `${manifest.kind === "lab" ? "Section" : "Scene"}: ${activeScene.title}` : undefined}
+        sceneLabel={!isLab && activeScene ? `Scene: ${activeScene.title}` : undefined}
         onClearSelection={() => setSelection(null)}
         onSend={(text) => {
           void p.send(text, { selection: selection ?? undefined, sceneId: activeScene?.id });

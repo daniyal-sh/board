@@ -105,7 +105,11 @@ async function render(projectId: string, sceneId: string | undefined, quality: Q
   if (quality === "draft" && tl) {
     // Thumbnail for the projects list: a frame a little past the middle of the scene.
     const [f] = await frames(projectId, id, [tl.duration * 0.6]);
-    if (f) fs.writeFileSync(join(dir, "build", "thumb.png"), f.png);
+    if (f) {
+      fs.writeFileSync(join(dir, "build", "thumb.png"), f.png);
+      fs.mkdirSync(join(dir, "build", "thumbs"), { recursive: true });
+      fs.writeFileSync(join(dir, "build", "thumbs", `${id}.png`), f.png);
+    }
   }
   return { ok: true, scene: id, seconds: (Date.now() - t0) / 1000, durationSec: tl?.duration, log: warningsOnly(r.out) };
 }

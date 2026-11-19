@@ -2,12 +2,14 @@ import "./early-env";
 import fs from "node:fs";
 import { join } from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
-import { BRAND, IPC, type AgentEvent, type AgentProviderId, type AgentSettings, type CreateProjectInput, type PublishRequest, type Selection, type Visibility } from "@studio/shared";
+import { BRAND, IPC, type AgentEvent, type AgentProviderId, type AgentSettings, type ApprovalDecision, type CreateProjectInput, type PublishRequest, type Selection, type Visibility } from "@studio/shared";
 import { providerStatus } from "./agents/detect";
 import { agentDefaults, providerModels, setAgentDefaults } from "./agents/models";
-import { interruptAgent, sendToAgent } from "./agents/manager";
+import { interruptAgent, sendToAgent, stopAllAgents } from "./agents/manager";
+import { disposeAllCodex } from "./agents/codex";
+import { resetAlways, respond as respondApproval } from "./agents/approvals";
 import { setSelection, startToolServer } from "./agents/tools";
-import { buildExport, buildPreview, handlePreviewProtocol, registerPreviewScheme, PREVIEW_SCHEME } from "./build/preview";
+import { buildExport, buildPreview, handlePreviewProtocol, webSceneThumbnails, registerPreviewScheme, PREVIEW_SCHEME } from "./build/preview";
 import { listHistory, restoreTo, undoLast } from "./history";
 import { ensureLabKit, paths } from "./paths";
 import { projects } from "./projects";
@@ -77,9 +79,11 @@ function registerIpc(): void {
   handle(IPC.agentModels, (provider: AgentProviderId, refresh?: boolean) => providerModels(provider, refresh));
   handle(IPC.agentSettings, (id: string, settings: AgentSettings) => {
     const m = projects.manifest(id);
+    if ((m.agent.access ?? "ask") !== (settings.access ?? "ask")) resetAlways(id);
     // A thread belongs to one provider; switching providers starts a fresh conversation there.
     projects.saveManifest({ ...m, agent: settings });
   });
+  handle(IPC.agentApproval, (_id: string, requestId: string, decision: ApprovalDecision) => respondApproval(requestId, decision, emit));
   handle(IPC.agentDefaults, () => agentDefaults());
   handle(IPC.agentSetDefaults, (settings: AgentSettings) => setAgentDefaults(settings));
 
@@ -121,6 +125,9 @@ function registerIpc(): void {
     return { path: res.filePath };
   });
 
+  handle(IPC.buildThumbs, async (id: string) => {
+    if (projects.manifest(id).kind === "web") await webSceneThumbnails(id);
+  });
   handle(IPC.buildCopyHtml, async (id: string) => {
     const built = await buildExport(id);
     clipboard.writeText(built.html);
@@ -216,6 +223,12 @@ app.whenReady().then(async () => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+// Don't leave agent CLIs or Codex app-servers running after the app closes.
+app.on("before-quit", () => {
+  stopAllAgents();
+  disposeAllCodex();
 });
 
 app.on("window-all-closed", () => {

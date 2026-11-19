@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ProjectKind, Selection } from "@studio/shared";
+import type { Selection } from "@studio/shared";
 import { errorMessage, formatBytes, studio } from "../lib/api";
 import { Cursor, Desktop, Download, Phone, Refresh } from "./Icons";
 
@@ -21,10 +21,8 @@ const LIB_LABEL: Record<string, string> = {
 
 export function WebPreview(props: {
   projectId: string;
-  kind: ProjectKind;
   revision: number;
   busy: boolean;
-  sceneId?: string;
   selection: Selection | null;
   onSelect: (part: string | null, info?: { tag?: string; text?: string }) => void;
 }) {
@@ -36,7 +34,6 @@ export function WebPreview(props: {
   const [building, setBuilding] = useState(false);
   const [device, setDevice] = useState<"desktop" | "phone">("desktop");
   const [picking, setPicking] = useState(false);
-  const [whole, setWhole] = useState(true);
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
   const [showConsole, setShowConsole] = useState(false);
 
@@ -47,9 +44,7 @@ export function WebPreview(props: {
       setErrors(r.errors);
       if (r.ok && r.previewUrl) {
         setConsoleLines([]);
-        // Web animations: the whole animation from the start, or just the selected scene.
-        const scene = props.kind === "web" && !whole && props.sceneId ? `&scene=${encodeURIComponent(props.sceneId)}&only=1` : "";
-        setUrl(r.previewUrl + scene);
+        setUrl(r.previewUrl);
         setSize(r.sizeBytes ?? null);
         setLibs(r.libraries ?? []);
       }
@@ -62,7 +57,7 @@ export function WebPreview(props: {
 
   useEffect(() => {
     void build();
-  }, [props.projectId, props.revision, whole, whole ? null : props.sceneId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [props.projectId, props.revision]);
 
   // Messages from the preview bridge.
   useEffect(() => {
@@ -88,21 +83,11 @@ export function WebPreview(props: {
   useEffect(() => postPick(picking), [picking]);
 
   const errorCount = consoleLines.filter((l) => l.level === "error").length;
-  const isLab = props.kind === "lab";
+  const isLab = true;
 
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] gap-3 px-[18px] py-4">
       <div className="flex items-center gap-2">
-        {props.kind === "web" && (
-          <div className="seg">
-            <button data-on={!whole} onClick={() => setWhole(false)} disabled={!props.sceneId}>
-              This scene
-            </button>
-            <button data-on={whole} onClick={() => setWhole(true)}>
-              Whole animation
-            </button>
-          </div>
-        )}
         <button
           className="btn btn-sm"
           data-on={picking}

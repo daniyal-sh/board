@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentSettings, ChatTurn, ProviderStatus, Selection } from "@studio/shared";
+import type { AgentSettings, ApprovalDecision, ApprovalRequest, ChatTurn, ProviderStatus, Selection } from "@studio/shared";
 import { studio } from "../lib/api";
 import { ArrowUp, Check, Stop, Undo } from "./Icons";
 import { Markdown } from "./Markdown";
@@ -70,6 +70,52 @@ function Activity({ turn }: { turn: ChatTurn }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+const ALWAYS_LABEL: Record<ApprovalRequest["kind"], string> = {
+  command: "Always allow commands",
+  web: "Always allow web access",
+  file: "Always allow outside files",
+  other: "Always allow this",
+};
+
+/** The assistant asks before doing something outside its access level. */
+function ApprovalCard(props: { projectId: string; approval: ApprovalRequest & { decision?: ApprovalDecision } }) {
+  const a = props.approval;
+  const answer = (d: ApprovalDecision) => void studio.agents.respondApproval(props.projectId, a.requestId, d);
+  if (a.decision) {
+    return (
+      <div className="my-1 flex items-center gap-1.5 text-[12px] text-muted">
+        <span className={a.decision === "deny" ? "text-bad" : "text-good"}>{a.decision === "deny" ? "✕" : "✓"}</span>
+        <span className="truncate">
+          {a.decision === "deny" ? "Declined" : a.decision === "always" ? "Allowed (and from now on)" : "Allowed"}: {a.title}
+          {a.detail ? ` · ${a.detail}` : ""}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="my-2 rounded-xl bg-surface p-3 shadow-[0_0_0_1.5px_var(--color-accent),var(--shadow-1)] animate-in">
+      <div className="flex items-center gap-2 text-[12.5px] font-semibold text-ink">
+        <span className="grid h-5 w-5 place-items-center rounded-md bg-accent-soft text-[11px] text-accent">?</span>
+        {a.title}?
+      </div>
+      {a.reason && <p className="mb-0 mt-1.5 text-[12px] text-ink-2">{a.reason}</p>}
+      {a.detail && <pre className="mb-0 mt-1.5 max-h-28 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-surface-2 px-2.5 py-1.5 font-mono text-[11px] text-ink-2">{a.detail}</pre>}
+      <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+        <button className="btn btn-dark btn-sm" onClick={() => answer("allow")}>
+          Allow
+        </button>
+        <button className="btn btn-sm" onClick={() => answer("always")}>
+          {ALWAYS_LABEL[a.kind]}
+        </button>
+        <span className="flex-1" />
+        <button className="btn btn-ghost btn-sm" onClick={() => answer("deny")}>
+          Deny
+        </button>
+      </div>
     </div>
   );
 }
@@ -175,8 +221,21 @@ export function Chat(props: {
               </div>
               <div className="text-[13px] text-ink-2">
                 <Activity turn={t} />
+                {t.approvals?.map((a) => (
+                  <ApprovalCard key={a.requestId} projectId={props.projectId} approval={a} />
+                ))}
                 {t.reply && <Markdown text={t.reply.trim()} />}
-                {t.status === "error" && <div className="mt-1 rounded-lg bg-bad-soft px-2.5 py-1.5 text-[12px] text-bad">{t.error}</div>}
+                {t.notices?.map((n) => (
+                  <div key={n} className="mt-1 rounded-lg bg-warn-soft px-2.5 py-1.5 text-[12px] text-warn">
+                    {n}
+                  </div>
+                ))}
+                {t.status === "error" &&
+                  (t.error === "Stopped." ? (
+                    <div className="mt-1 text-[12px] text-muted">Stopped. Anything it changed so far is kept; use Undo to roll it back.</div>
+                  ) : (
+                    <div className="mt-1 rounded-lg bg-bad-soft px-2.5 py-1.5 text-[12px] text-bad">{t.error}</div>
+                  ))}
               </div>
             </div>
           ))}
@@ -235,22 +294,23 @@ export function Chat(props: {
             placeholder={props.busy ? "Working… you can type your next request" : props.selection ? `What should change about ${props.selection.part}?` : "Describe a change…"}
             className="w-full resize-none bg-transparent px-0.5 text-[13px] outline-none placeholder:text-faint"
           />
-          <div className="flex items-center gap-1">
-            <AgentControls
-              value={props.agent}
-              providers={props.providers}
-              onChange={props.onAgentChange}
-              lockProvider={props.turns.length > 0}
-              onMakeDefault={(a) => void studio.agents.setDefaults(a)}
-              placement="up"
-            />
-            <span className="flex-1" />
+          <div className="flex items-end gap-1">
+            <div className="min-w-0 flex-1">
+              <AgentControls
+                value={props.agent}
+                providers={props.providers}
+                onChange={props.onAgentChange}
+                lockProvider={props.turns.length > 0}
+                onMakeDefault={(a) => void studio.agents.setDefaults(a)}
+                placement="up"
+              />
+            </div>
             {props.busy ? (
-              <button className="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-bad-soft text-bad" title="Stop" onClick={() => void studio.agents.interrupt(props.projectId)}>
+              <button className="grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] bg-bad-soft text-bad" title="Stop" onClick={() => void studio.agents.interrupt(props.projectId)}>
                 <Stop />
               </button>
             ) : (
-              <button className="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-ink text-white disabled:opacity-30" disabled={!text.trim()} onClick={submit} title="Send (Enter)">
+              <button className="grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] bg-ink text-white disabled:opacity-30" disabled={!text.trim()} onClick={submit} title="Send (Enter)">
                 <ArrowUp size={14} />
               </button>
             )}

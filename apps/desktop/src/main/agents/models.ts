@@ -6,6 +6,7 @@ import type { AgentProviderId, AgentSettings, ModelOption, ProviderModels } from
 import { paths } from "../paths";
 import { listCodexModels } from "./codex";
 import { executableFor } from "./detect";
+import { providerEnv } from "./process";
 
 /**
  * Model lists come from the installed CLIs themselves, so new models appear without an app update.
@@ -34,7 +35,7 @@ async function claudeModels(): Promise<ModelOption[]> {
   // A session that never receives a prompt: enough to ask the CLI what it supports.
   const idle: AsyncIterable<SDKUserMessage> = { [Symbol.asyncIterator]: () => ({ next: () => new Promise<IteratorResult<SDKUserMessage>>(() => {}) }) };
   const abort = new AbortController();
-  const q = query({ prompt: idle, options: { pathToClaudeCodeExecutable: exe, settingSources: [], cwd: os.homedir(), abortController: abort } });
+  const q = query({ prompt: idle, options: { pathToClaudeCodeExecutable: exe, settingSources: [], cwd: os.homedir(), abortController: abort, env: providerEnv({ CLAUDE_CODE_ENTRYPOINT: "studio" }) } });
   try {
     const list = await Promise.race([
       q.supportedModels(),

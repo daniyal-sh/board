@@ -213,20 +213,8 @@ function copyDir(from: string, to: string, transform: (text: string) => string):
 
 /** The storyboard is derived from the project files, so the agent never has to maintain a list. */
 export function scanScenes(dir: string, kind: ProjectManifest["kind"]): SceneMeta[] {
-  if (kind === "lab") {
-    const html = readText(join(dir, "lab", "index.html"));
-    const sections = [...html.matchAll(/<section\b[^>]*data-part="([^"]+)"[^>]*>([\s\S]*?)<\/section>/gi)];
-    if (!sections.length) return [{ id: "page", title: "Page", file: "lab/index.html", status: "sketch" }];
-    return sections.map((m) => {
-      const heading = /<h[1-3][^>]*>([\s\S]*?)<\/h[1-3]>/i.exec(m[2]);
-      return {
-        id: m[1],
-        title: heading ? stripTags(heading[1]) : humanize(m[1]),
-        file: "lab/index.html",
-        status: "sketch",
-      };
-    });
-  }
+  // A Lab is one page: no storyboard.
+  if (kind === "lab") return [];
   const ext = kind === "video" ? ".py" : ".ts";
   const sceneDir = join(dir, "scenes");
   if (!fs.existsSync(sceneDir)) return [];
@@ -242,11 +230,14 @@ export function scanScenes(dir: string, kind: ProjectManifest["kind"]): SceneMet
           : /export\s+const\s+title\s*=\s*["'`](.+?)["'`]/.exec(src)?.[1];
       const id = basename(f, ext);
       const rendered = join(dir, "build", "scenes", `${id}.mp4`);
+      const thumb = join(dir, "build", "thumbs", `${id}.png`);
+      const pid = readJson<{ id?: string }>(join(dir, MANIFEST), {}).id;
       return {
         id,
         title: title?.trim() || humanize(id.replace(/^\d+_/, "")),
         file: `scenes/${f}`,
-        status: fs.existsSync(rendered) ? "rendered" : "sketch",
+        status: fs.existsSync(rendered) || (kind === "web" && fs.existsSync(thumb)) ? "rendered" : "sketch",
+        thumbUrl: fs.existsSync(thumb) && pid ? `studio-preview://${pid}/thumbs/${id}.png?v=${Math.round(fs.statSync(thumb).mtimeMs)}` : undefined,
       } satisfies SceneMeta;
     });
 }

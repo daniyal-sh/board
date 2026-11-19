@@ -20,7 +20,16 @@ export interface AgentSettings {
   effort?: string;
   /** Faster responses (Claude fast mode / Codex priority tier), usually at higher usage. */
   fast?: boolean;
+  /** How much the assistant may do on this computer. Defaults to "ask". */
+  access?: AccessLevel;
 }
+
+/**
+ * - ask: edits files in the project; commands, downloads and anything outside the project ask first
+ * - auto: also runs commands and uses the web without asking, limited to the project folder
+ * - full: no limits
+ */
+export type AccessLevel = "ask" | "auto" | "full";
 
 /** A model a provider offers, as reported by the installed CLI. */
 export interface ModelOption {
@@ -51,6 +60,8 @@ export interface SceneMeta {
   file: string;
   status: SceneStatus;
   durationSec?: number;
+  /** Picture of the scene for the storyboard and timeline. */
+  thumbUrl?: string;
 }
 
 export type Visibility = "private" | "unlisted" | "public";

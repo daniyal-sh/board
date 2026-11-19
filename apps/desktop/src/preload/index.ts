@@ -23,6 +23,7 @@ const api: StudioApi = {
     setSelection: (id, sel) => invoke(IPC.agentSelection, id, sel),
     models: (provider, refresh) => invoke(IPC.agentModels, provider, refresh),
     setSettings: (id, settings) => invoke(IPC.agentSettings, id, settings),
+    respondApproval: (id, requestId, decision) => invoke(IPC.agentApproval, id, requestId, decision),
     defaults: () => invoke(IPC.agentDefaults),
     setDefaults: (settings) => invoke(IPC.agentSetDefaults, settings),
   },
@@ -40,6 +41,7 @@ const api: StudioApi = {
     preview: (id, scene) => invoke(IPC.buildPreview, id, scene),
     exportHtml: (id) => invoke(IPC.buildExportHtml, id),
     copyHtml: (id) => invoke(IPC.buildCopyHtml, id),
+    thumbnails: (id) => invoke(IPC.buildThumbs, id),
   },
   video: {
     status: () => invoke(IPC.videoStatus),

@@ -55,6 +55,17 @@ export function useProject(id: string) {
               }),
             );
             break;
+          case "approval":
+            setTurns((ts) => ts.map((t) => (t.turnId === e.turnId ? { ...t, approvals: [...(t.approvals ?? []), e.request] } : t)));
+            break;
+          case "approval.resolved":
+            setTurns((ts) =>
+              ts.map((t) => (t.turnId === e.turnId ? { ...t, approvals: (t.approvals ?? []).map((a) => (a.requestId === e.requestId ? { ...a, decision: e.decision } : a)) } : t)),
+            );
+            break;
+          case "notice":
+            setTurns((ts) => ts.map((t) => (t.turnId === e.turnId ? { ...t, notices: [...(t.notices ?? []).filter((n) => n !== e.text), e.text] } : t)));
+            break;
           case "preview.updated":
             setRevision((r) => r + 1);
             void studio.projects.open(idRef.current).then((p) => setProject((cur) => (cur ? { ...cur, manifest: p.manifest } : p)));
@@ -94,5 +105,5 @@ export function useProject(id: string) {
     setRevision((r) => r + 1);
   }, [reload]);
 
-  return { project, turns, busy, error, setError, revision, send, refresh, setProject };
+  return { project, turns, busy, error, setError, revision, send, refresh, reload, setProject };
 }

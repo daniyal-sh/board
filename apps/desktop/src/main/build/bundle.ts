@@ -199,10 +199,10 @@ export async function buildSingleFile(dir: string, kind: ProjectKind, title: str
       const json = join(dir, "build", "narration", `${id}.json`);
       const wav = join(dir, "build", "narration", `${id}.wav`);
       if (!fs.existsSync(json) || !fs.existsSync(wav)) continue;
-      const n = JSON.parse(fs.readFileSync(json, "utf8")) as { marks: Record<string, number>; captions: SceneNarration["captions"] };
-      narration[id] = { audio: `data:audio/wav;base64,${fs.readFileSync(wav).toString("base64")}`, marks: n.marks, captions: n.captions };
+      const n = JSON.parse(fs.readFileSync(json, "utf8")) as { marks: Record<string, number>; captions: SceneNarration["captions"]; duration: number };
+      narration[id] = { audio: `data:audio/wav;base64,${fs.readFileSync(wav).toString("base64")}`, duration: n.duration, marks: n.marks, captions: n.captions };
     }
-    fs.writeFileSync(entry, webRunnerSource(files, narration));
+    fs.writeFileSync(entry, webRunnerSource(files.map((file) => ({ file })), narration));
     shell = webShellHtml(title);
   } else {
     return { ok: false, libraries: [], errors: ["Videos are rendered with Manim, not bundled"], warnings: [] };

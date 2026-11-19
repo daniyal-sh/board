@@ -8,6 +8,7 @@ import { claudeDriver } from "./claude";
 import { codexDriver } from "./codex";
 import type { AgentDriver, DriverEvent } from "./driver";
 import { setToolContext, toolServerUrl } from "./tools";
+import { denyOpen, makeApprover } from "./approvals";
 
 const drivers: Record<string, AgentDriver> = { claude: claudeDriver, codex: codexDriver };
 
@@ -30,6 +31,8 @@ function stepLabel(name: string, input: Record<string, unknown> = {}): { label: 
     case "Glob":
     case "Grep":
       return { label: "Looking through the project" };
+    case "WebFetch":
+      return { label: "Reading a web page", detail: String(input.url ?? "") };
     case "WebSearch":
       return { label: "Searching the web", detail: String(input.query ?? "") };
     case "TodoWrite":
@@ -40,7 +43,7 @@ function stepLabel(name: string, input: Record<string, unknown> = {}): { label: 
       // Codex reads and lists files through the shell; teachers don't need the command line.
       const cmd = String(input.command ?? "");
       if (/Get-Content|Get-ChildItem|\bcat\b|\bls\b|\brg\b|\bgrep\b|Select-String|\bsed -n\b|\bhead\b|\btype\b/i.test(cmd)) return { label: "Looking through the project" };
-      return { label: "Running a check" };
+      return { label: "Running a command", detail: cmd.replace(/\s+/g, " ").slice(0, 90) };
     }
     case "mcp__studio__render_preview":
       return { label: "Rendering the preview", detail: input.scene ? String(input.scene) : undefined };
@@ -108,9 +111,24 @@ export async function sendToAgent(req: AgentRequest, emit: Emit): Promise<{ turn
     .filter(Boolean)
     .join("\n");
 
+  // Approval cards: recorded on the turn (so they survive reloads) and forwarded to the UI.
+  const approve = makeApprover(
+    req.projectId,
+    turnId,
+    (e) => {
+      if (e.type === "approval") turn.approvals = [...(turn.approvals ?? []), e.request];
+      if (e.type === "approval.resolved") turn.approvals = (turn.approvals ?? []).map((a) => (a.requestId === e.requestId ? { ...a, decision: e.decision } : a));
+      emit(e);
+    },
+    abort.signal,
+  );
+
   const stepFor = new Map<string, string>();
   const onEvent = (e: DriverEvent) => {
-    if (e.type === "text") {
+    if (e.type === "notice") {
+      turn.notices = [...(turn.notices ?? []).filter((n) => n !== e.text), e.text];
+      emit({ type: "notice", projectId: req.projectId, turnId, text: e.text });
+    } else if (e.type === "text") {
       turn.reply += e.delta;
       emit({ type: "text", projectId: req.projectId, turnId, delta: e.delta });
     } else if (e.type === "tool.start") {
@@ -143,6 +161,7 @@ export async function sendToAgent(req: AgentRequest, emit: Emit): Promise<{ turn
           readOnlyDirs: [join(paths.labKitDir, "node_modules"), join(paths.labKitDir, "src")],
           signal: abort.signal,
           settings: manifest.agent,
+          approve,
         },
         onEvent,
       );
@@ -164,6 +183,7 @@ export async function sendToAgent(req: AgentRequest, emit: Emit): Promise<{ turn
     } finally {
       turn.finishedAt = new Date().toISOString();
       running.delete(req.projectId);
+      denyOpen(req.projectId, turnId, emit);
       const all = projects.chat(req.projectId);
       const i = all.findIndex((t) => t.turnId === turnId);
       if (i >= 0) all[i] = turn;
@@ -172,6 +192,11 @@ export async function sendToAgent(req: AgentRequest, emit: Emit): Promise<{ turn
   })();
 
   return { turnId };
+}
+
+/** Stop every running turn (app quitting). */
+export function stopAllAgents(): void {
+  for (const a of running.values()) a.abort();
 }
 
 export function interruptAgent(projectId: string): void {

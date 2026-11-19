@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { join } from "node:path";
 import { app } from "electron";
 import type { AgentEvent, AgentProviderId, ProjectKind } from "@studio/shared";
-import { sendToAgent } from "./agents/manager";
+import { interruptAgent, sendToAgent } from "./agents/manager";
 import { buildExport, buildPreview, closeInspector, inspectPreview } from "./build/preview";
 import { projects } from "./projects";
 
@@ -51,6 +51,14 @@ export default async function (scene: Scene) {
   await scene.wait(1);
 }
 `,
+  "scenes/02_dots.ts": `import { Scene, Dot, FadeIn, GREEN } from "manim-web";
+export const title = "Dots";
+export default async function (scene: Scene) {
+  const d = new Dot({ color: GREEN });
+  await scene.play(new FadeIn(d));
+  await scene.wait(0.5);
+}
+`,
 };
 
 function writeFiles(dir: string, files: Record<string, string>): void {
@@ -75,6 +83,13 @@ async function buildCase(out: string, kind: ProjectKind, files: Record<string, s
       const r = await inspectPreview(p.manifest.id, { viewport: vp, times: kind === "web" ? [1, 3.5] : [1.5] });
       r.frames.forEach((f, i) => fs.writeFileSync(join(out, `${kind}-${vp}-${i}.png`), f.png));
       entry[`console_${vp}`] = r.console;
+    }
+    if (kind === "web") {
+      const { webSceneThumbnails } = await import("./build/preview");
+      entry.thumbs = await webSceneThumbnails(p.manifest.id);
+      const td = join(p.dir, "build", "thumbs");
+      if (fs.existsSync(td)) for (const f of fs.readdirSync(td)) fs.copyFileSync(join(td, f), join(out, `thumb-${f}`));
+      entry.scenesAfter = projects.manifest(p.manifest.id).scenes;
     }
   }
   report[kind] = entry;
@@ -331,6 +346,73 @@ export async function runSelftest(out: string): Promise<void> {
       }
     }
     if (mode === "publish") await publishCase(report);
+    if (mode === "access") {
+      // Approval cards answered automatically: allow, then deny; then Auto mode (no cards).
+      const { respond } = await import("./agents/approvals");
+      const provider = (process.env.STUDIO_SELFTEST_AGENT ?? "claude") as AgentProviderId;
+      const cheap = provider === "claude" ? { model: "haiku", effort: "low" } : { model: "gpt-5.6-luna", effort: "low" };
+      const p = await projects.create({ kind: "lab", prompt: "access", length: "short", title: `Access ${provider} ${Date.now()}`, agent: { provider, ...cheap, access: "ask" } });
+      const id = p.manifest.id;
+      const cmd = provider === "claude" ? 'node -e "console.log(6*7)"' : 'curl.exe -s -o NUL -w "%{http_code}" https://example.com';
+      const ask =
+        provider === "claude"
+          ? `Run exactly this shell command and tell me its output in one line: ${cmd}`
+          : "Download https://example.com into a file called example.html in this project folder, then tell me its size in bytes in one line.";
+      const turn = (answer: "allow" | "deny" | null) =>
+        new Promise<Record<string, unknown>>((resolve) => {
+          const cards: string[] = [];
+          let reply = "";
+          void sendToAgent({ projectId: id, text: ask }, (e) => {
+            if (e.type === "approval") {
+              cards.push(`${e.request.kind}: ${e.request.title} | ${e.request.detail ?? ""}`);
+              if (answer) setTimeout(() => respond(e.request.requestId, answer, () => {}), 300);
+            }
+            if (e.type === "text") reply += e.delta;
+            if (e.type === "turn.completed" || e.type === "turn.failed") resolve({ result: e.type, cards, reply: reply.slice(-300) });
+          });
+        });
+      const r: Record<string, unknown> = {};
+      r.askAllow = await turn("allow");
+      r.askDeny = await turn("deny");
+      projects.saveManifest({ ...projects.manifest(id), agent: { provider, ...cheap, access: "auto" } });
+      r.auto = await turn(null);
+      report[`access_${provider}`] = r;
+    }
+    if (mode === "edges") {
+      const provider = (process.env.STUDIO_SELFTEST_AGENT ?? "claude") as AgentProviderId;
+      const cheap = provider === "claude" ? { model: "haiku", effort: "low" } : { model: "gpt-5.6-luna", effort: "low" };
+      const p = await projects.create({ kind: "lab", prompt: "edge cases", length: "short", title: `Edges ${provider} ${Date.now()}`, agent: { provider, ...cheap } });
+      const id = p.manifest.id;
+      const turn = (text: string, abortAfterMs?: number) =>
+        new Promise<{ ms: number; result: string; notices: string[]; steps: number }>((resolve) => {
+          const t0 = Date.now();
+          const notices: string[] = [];
+          let steps = 0;
+          void sendToAgent({ projectId: id, text }, (e) => {
+            if (e.type === "notice") notices.push(e.text);
+            if (e.type === "step" && e.status === "running") steps++;
+            if (e.type === "turn.completed") resolve({ ms: Date.now() - t0, result: "completed", notices, steps });
+            if (e.type === "turn.failed") resolve({ ms: Date.now() - t0, result: `failed: ${e.error}`, notices, steps });
+          }).then(() => {
+            if (abortAfterMs) setTimeout(() => interruptAgent(id), abortAfterMs);
+          }, (err) => resolve({ ms: Date.now() - t0, result: `threw: ${err}`, notices, steps }));
+        });
+      const quick = "Reply with just the word OK. Do not use any tools.";
+      const r: Record<string, unknown> = {};
+      r.plain = await turn(quick);
+      // Stale session / thread id
+      projects.saveSession(id, { [provider]: provider === "claude" ? "00000000-0000-4000-8000-000000000000" : "019a0000-0000-7000-8000-000000000000" });
+      r.staleSession = await turn(quick);
+      // Bad model
+      const m = projects.manifest(id);
+      projects.saveManifest({ ...m, agent: { ...m.agent, model: provider === "claude" ? "claude-nonexistent-9" : "gpt-nonexistent-9" } });
+      r.badModel = await turn(quick);
+      projects.saveManifest({ ...projects.manifest(id), agent: { provider, ...cheap } });
+      // Stop mid-turn, then make sure the harness still works
+      r.stop = await turn("Build a Lab with a slider for the number of sides of a regular polygon and draw it on a canvas. Check your work with the Studio tools.", 9000);
+      r.afterStop = await turn(quick);
+      report[`edges_${provider}`] = r;
+    }
     if (mode === "autonarrate") {
       const target = projects.list().find((x) => x.kind === "video" && /selftest video/i.test(x.title));
       if (!target) throw new Error("No selftest video project");

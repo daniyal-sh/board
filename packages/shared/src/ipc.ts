@@ -1,4 +1,4 @@
-import type { AgentEvent, AgentRequest, ChatTurn, ProviderStatus, Selection } from "./agent.ts";
+import type { AgentEvent, AgentRequest, ApprovalDecision, ChatTurn, ProviderStatus, Selection } from "./agent.ts";
 
 export interface VideoEnvStatus {
   uv: boolean;
@@ -102,6 +102,8 @@ export interface StudioApi {
     /** Models, reasoning levels and fast mode each installed assistant offers (cached; refresh re-reads the CLI). */
     models(provider: AgentProviderId, refresh?: boolean): Promise<ProviderModels>;
     setSettings(projectId: string, settings: AgentSettings): Promise<void>;
+    /** Answer an approval card. */
+    respondApproval(projectId: string, requestId: string, decision: ApprovalDecision): Promise<void>;
     /** Settings used for new projects. */
     defaults(): Promise<AgentSettings>;
     setDefaults(settings: AgentSettings): Promise<void>;
@@ -121,6 +123,8 @@ export interface StudioApi {
     /** Lab / web: rebuild the preview. Video: render a draft of one scene. */
     preview(projectId: string, sceneId?: string): Promise<BuildResult>;
     exportHtml(projectId: string): Promise<{ path: string } | null>;
+    /** Web animations: capture a picture of each scene for the storyboard. */
+    thumbnails(projectId: string): Promise<void>;
     /** Build the shareable single file and put it on the clipboard. */
     copyHtml(projectId: string): Promise<{ sizeBytes: number }>;
   };
@@ -181,9 +185,11 @@ export const IPC = {
   buildPreview: "build:preview",
   buildExportHtml: "build:exportHtml",
   buildCopyHtml: "build:copyHtml",
+  buildThumbs: "build:thumbs",
   agentSelection: "agent:selection",
   agentModels: "agent:models",
   agentSettings: "agent:settings",
+  agentApproval: "agent:approval",
   agentDefaults: "agent:defaults",
   agentSetDefaults: "agent:setDefaults",
   videoStatus: "video:status",

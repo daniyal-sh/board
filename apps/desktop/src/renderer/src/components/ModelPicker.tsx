@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentProviderId, AgentSettings, ModelOption, ProviderModels, ProviderStatus } from "@studio/shared";
+import type { AccessLevel, AgentProviderId, AgentSettings, ModelOption, ProviderModels, ProviderStatus } from "@studio/shared";
 import { studio } from "../lib/api";
 import { Check, Refresh } from "./Icons";
 
@@ -116,7 +116,7 @@ export function AgentControls(props: {
   const status = (id: AgentProviderId) => props.providers?.find((p) => p.id === id);
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex min-w-0 flex-wrap items-center gap-0.5">
       {/* Model (and harness) */}
       <div ref={modelMenu.ref} className="relative">
         <button className={chipClass} data-open={modelMenu.open} onClick={() => modelMenu.setOpen((o) => !o)} title="Model">
@@ -211,7 +211,7 @@ export function AgentControls(props: {
       {efforts.length > 0 && (
         <div ref={effortMenu.ref} className="relative">
           <button className={chipClass} data-open={effortMenu.open} onClick={() => effortMenu.setOpen((o) => !o)} title="Reasoning">
-            <span>{v.effort ? effortLabel(v.effort) : "Auto"}</span>
+            <span className="whitespace-nowrap">{v.effort ? effortLabel(v.effort) : "Auto effort"}</span>
             <Caret />
           </button>
           {effortMenu.open && (
@@ -243,6 +243,9 @@ export function AgentControls(props: {
         </div>
       )}
 
+      {/* Access */}
+      <AccessMenu value={v.access ?? "ask"} provider={provider.label} pos={pos} placement={props.placement} onChange={(access) => props.onChange({ ...v, access })} />
+
       {/* Fast mode */}
       {model?.fast && (
         <button
@@ -254,6 +257,55 @@ export function AgentControls(props: {
         >
           ⚡{v.fast && <span className="font-medium">Fast</span>}
         </button>
+      )}
+    </div>
+  );
+}
+
+const ACCESS: { id: AccessLevel; label: string; icon: string; hint: string }[] = [
+  { id: "ask", label: "Ask first", icon: "✋", hint: "Edits files in this project. Asks before running commands, using the web, or touching anything else." },
+  { id: "auto", label: "Auto", icon: "⚙", hint: "Also runs commands and uses the web without asking. Stays inside the project folder." },
+  { id: "full", label: "Full access", icon: "⚠", hint: "No limits: can run anything and change any file on this computer. Use with care." },
+];
+
+function AccessMenu(props: { value: AccessLevel; provider: string; pos: string; placement?: "up" | "down"; onChange: (a: AccessLevel) => void }) {
+  const menu = usePopover();
+  const current = ACCESS.find((a) => a.id === props.value) ?? ACCESS[0];
+  const danger = props.value === "full";
+  return (
+    <div ref={menu.ref} className="relative">
+      <button
+        className={chipClass}
+        data-open={menu.open}
+        onClick={() => menu.setOpen((o) => !o)}
+        title={`Access: ${current.label}`}
+        style={danger ? { color: "var(--color-bad)", background: "var(--color-bad-soft)" } : undefined}
+      >
+        <span className="text-[11px]">{current.icon}</span>
+        <span className="whitespace-nowrap">{current.label}</span>
+        <Caret />
+      </button>
+      {menu.open && (
+        <div className={`${menuClass} ${props.pos} ${props.placement === "down" ? "left-0" : "right-0"} w-[290px]`}>
+          <div className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">What {props.provider} may do</div>
+          {ACCESS.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => {
+                props.onChange(a.id);
+                menu.setOpen(false);
+              }}
+              className="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-surface-2"
+            >
+              <span className="mt-0.5 w-4 flex-none text-center text-[12px]">{a.icon}</span>
+              <span className="min-w-0 flex-1">
+                <span className={`block text-[12.5px] font-medium ${a.id === "full" ? "text-bad" : "text-ink"}`}>{a.label}</span>
+                <span className="block text-[11px] leading-snug text-muted">{a.hint}</span>
+              </span>
+              <span className="mt-0.5 w-3.5 flex-none">{props.value === a.id && <Check size={13} className="text-accent" />}</span>
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

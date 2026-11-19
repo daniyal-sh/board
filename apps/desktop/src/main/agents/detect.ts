@@ -1,4 +1,5 @@
-import { execFile, spawn, type SpawnOptions } from "node:child_process";
+import { execFile } from "node:child_process";
+import { killTree, providerEnv, resolveCodexNative, spawnCli } from "./process";
 import fs from "node:fs";
 import os from "node:os";
 import { delimiter, join } from "node:path";
@@ -53,19 +54,16 @@ export function findExecutable(name: string): string | undefined {
   return undefined;
 }
 
-/** Windows .cmd/.bat shims must run through the shell. */
-export function spawnOptionsFor(exe: string, opts: SpawnOptions = {}): SpawnOptions {
-  return { ...opts, shell: isWin && /\.(cmd|bat)$/i.test(exe), windowsHide: true };
-}
-
 export function run(exe: string, args: string[], timeoutMs = 15000): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    const child = spawn(isWin && /\.(cmd|bat)$/i.test(exe) ? `"${exe}"` : exe, args, spawnOptionsFor(exe, { stdio: ["ignore", "pipe", "pipe"] }));
+    // Probe the native binary when npm installed a shim, with the same clean environment as real runs.
+    const target = (/codex/i.test(exe) && resolveCodexNative(exe)) || exe;
+    const child = spawnCli(target, args, { stdio: ["ignore", "pipe", "pipe"], env: providerEnv() });
     let stdout = "";
     let stderr = "";
     child.stdout?.on("data", (d) => (stdout += d));
     child.stderr?.on("data", (d) => (stderr += d));
-    const timer = setTimeout(() => child.kill(), timeoutMs);
+    const timer = setTimeout(() => killTree(child), timeoutMs);
     child.on("error", (e) => {
       clearTimeout(timer);
       resolve({ code: -1, stdout, stderr: String(e) });

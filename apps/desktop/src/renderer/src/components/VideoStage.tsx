@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { FullPreview, SceneMeta, SceneTimeline, Selection, VideoEnvStatus } from "@studio/shared";
 import { errorMessage, studio } from "../lib/api";
-import { Pause, Play, Refresh } from "./Icons";
+import { Refresh } from "./Icons";
+import { Filmstrip, fmt, StartOverlay, Transport, usePlayerKeys, type Segment } from "./PlayerChrome";
 
 type Box = SceneTimeline["parts"][number]["boxes"][number];
 
@@ -25,8 +26,6 @@ const CLIP_STYLES: React.CSSProperties[] = [
   { background: "#E6F4EA", color: "#2F7D4A", boxShadow: "inset 0 0 0 1px #C9E6D2" },
   { background: "#F1EBF6", color: "#6B4B7E", boxShadow: "inset 0 0 0 1px #E0D3EA" },
 ];
-
-const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 type Mode = "scene" | "full";
 
@@ -135,8 +134,6 @@ export function VideoStage(props: {
     }
   }
 
-  if (env && !env.ready) return <VideoSetup onReady={setEnv} />;
-
   const src = mode === "full" ? full?.url ?? null : url;
   const duration = mode === "full" ? full?.duration ?? 0 : tl?.duration || video.current?.duration || 0;
 
@@ -145,6 +142,16 @@ export function VideoStage(props: {
     else pendingSeek.current = t;
     setTime(t);
   }
+
+  const chapters: Segment[] = mode === "full" ? segments.map((s) => ({ id: s.sceneId, title: s.title, start: s.start, end: s.end })) : [];
+  const thumbs = Object.fromEntries(props.scenes.map((s) => [s.id, s.thumbUrl]));
+  const toggle = () => {
+    const v = video.current;
+    if (!v) return;
+    if (v.paused) void v.play();
+    else v.pause();
+  };
+  usePlayerKeys(Boolean(src), { toggle, seek, time, duration, segments: chapters });
 
   function onStageClick(e: React.MouseEvent<HTMLDivElement>) {
     const r = e.currentTarget.getBoundingClientRect();
@@ -178,6 +185,8 @@ export function VideoStage(props: {
     mode === "full"
       ? segments.flatMap((s) => (fullTimelines[s.sceneId]?.plays ?? []).filter((p) => p.kind === "mark").map((p) => ({ ...p, end: p.end + s.start })))
       : (tl?.plays.filter((p) => p.kind === "mark") ?? []);
+
+  if (env && !env.ready) return <VideoSetup onReady={setEnv} />;
 
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] gap-3 px-[18px] py-4">
@@ -252,26 +261,8 @@ export function VideoStage(props: {
                 <span className="glass absolute left-3 top-3 rounded-lg px-2.5 py-1 text-[11px]">{currentSegment.title}</span>
               )}
               <span className="glass absolute right-3 top-3 rounded-lg px-2.5 py-1 text-[11px]">Click anything to change it</span>
-              <div className="glass absolute inset-x-3 bottom-3 flex items-center gap-3 rounded-[11px] py-1.5 pl-1.5 pr-3">
-                <button className="grid h-7 w-7 place-items-center rounded-[7px] bg-white text-black" onClick={() => (playing ? video.current?.pause() : video.current?.play())}>
-                  {playing ? <Pause /> : <Play />}
-                </button>
-                <span className="font-mono text-[11px] text-white/85">{fmt(time)}</span>
-                <div
-                  className="relative h-1 flex-1 cursor-pointer rounded bg-white/25"
-                  onClick={(e) => {
-                    const r = e.currentTarget.getBoundingClientRect();
-                    seek(((e.clientX - r.left) / r.width) * duration);
-                  }}
-                >
-                  <i className="absolute inset-y-0 left-0 rounded bg-white" style={{ width: `${duration ? (time / duration) * 100 : 0}%` }} />
-                  {/* Chapter marks between scenes */}
-                  {mode === "full" &&
-                    duration > 0 &&
-                    segments.slice(1).map((s) => <span key={s.sceneId} className="absolute -top-1 h-3 w-[2px] rounded bg-white/80" style={{ left: `${(s.start / duration) * 100}%` }} title={s.title} />)}
-                </div>
-                <span className="font-mono text-[11px] text-white/85">{fmt(duration)}</span>
-              </div>
+              <StartOverlay show={!playing && time < 0.05} onPlay={toggle} />
+              <Transport playing={playing} time={time} duration={duration} segments={chapters} onToggle={toggle} onSeek={seek} />
             </>
           ) : (
             <div className="grid h-full place-items-center p-8 text-center text-white/70">
@@ -308,36 +299,16 @@ export function VideoStage(props: {
       <div className="card px-3 pb-3 pt-2.5">
         <div className="mb-2 flex items-center gap-2.5 text-[12px] text-muted">
           <b className="text-[12.5px] font-semibold text-ink">Timeline</b>
-          <span>{duration ? "Click a block to jump there" : "Appears after the first render"}</span>
+          <span>{duration ? "Click a block to jump there · space plays, [ ] jumps scenes" : "Appears after the first render"}</span>
         </div>
         <div className="grid grid-cols-[70px_1fr] gap-x-2.5">
           <div>
-            {mode === "full" && <div className="mb-1.5 flex h-6 items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-ink" />Scenes</div>}
+            {mode === "full" && <div className="mb-1.5 flex h-[46px] items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-ink" />Scenes</div>}
             <div className="mb-1.5 flex h-6 items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-manim-blue" />Animation</div>
-            <div className="flex h-6 items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-[#E8A33D]" />Voice cues</div>
+            <div className="flex h-6 items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-[#E8A33D]" />Voice</div>
           </div>
           <div className="relative grid gap-1.5">
-            {mode === "full" && (
-              <div className="relative h-6 rounded-md bg-surface-2">
-                {duration > 0 &&
-                  segments.map((s) => (
-                    <button
-                      key={s.sceneId}
-                      onClick={() => seek(s.start + 0.01)}
-                      title={s.title}
-                      className="absolute inset-y-[2px] overflow-hidden whitespace-nowrap rounded-[5px] px-2 text-left text-[11px] font-semibold"
-                      style={{
-                        left: `${(s.start / duration) * 100}%`,
-                        width: `calc(${((s.end - s.start) / duration) * 100}% - 2px)`,
-                        background: currentSegment?.sceneId === s.sceneId ? "var(--color-ink)" : "#EAE7E0",
-                        color: currentSegment?.sceneId === s.sceneId ? "#fff" : "var(--color-ink-2)",
-                      }}
-                    >
-                      {s.title}
-                    </button>
-                  ))}
-              </div>
-            )}
+            {mode === "full" && <Filmstrip segments={chapters} duration={duration} currentId={currentSegment?.sceneId} thumbs={thumbs} onSeek={seek} />}
             <div className="relative h-6 rounded-md bg-surface-2">
               {duration > 0 &&
                 plays.map((p, i) => (

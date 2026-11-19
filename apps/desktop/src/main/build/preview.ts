@@ -178,6 +178,35 @@ async function inspectNow(
   return { console: unique, frames };
 }
 
+/**
+ * Web animations: a picture of each scene, taken from the middle of it in the recorded player.
+ * Saved as build/thumbs/<scene>.png for the storyboard and the timeline filmstrip.
+ */
+export function webSceneThumbnails(projectId: string): Promise<number> {
+  const run = queue.then(async () => {
+    const win = inspectorWindow();
+    win.setContentSize(VIEWPORTS.desktop.width, Math.round((VIEWPORTS.desktop.width * 9) / 16));
+    await win.loadURL(previewUrl(projectId, "still=1")).catch(() => {});
+    let scenes: { id: string; start: number; end: number }[] = [];
+    for (let i = 0; i < 60 && !scenes.length; i++) {
+      await new Promise((r) => setTimeout(r, 250));
+      scenes = (await win.webContents.executeJavaScript("window.__studioPlayer?.ready ? window.__studioPlayer.scenes : []").catch(() => [])) as typeof scenes;
+    }
+    const out = join(projects.dir(projectId), "build", "thumbs");
+    fs.mkdirSync(out, { recursive: true });
+    for (const s of scenes) {
+      await win.webContents.executeJavaScript(`window.__studioPlayer.seek(${s.start + (s.end - s.start) * 0.6})`).catch(() => {});
+      await new Promise((r) => setTimeout(r, 300));
+      const img = await win.webContents.capturePage();
+      if (!img.isEmpty()) fs.writeFileSync(join(out, `${s.id}.png`), img.resize({ width: 480 }).toPNG());
+    }
+    void win.loadURL("about:blank").catch(() => {});
+    return scenes.length;
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
 /** Close the inspector (call before quitting). */
 export function closeInspector(): void {
   if (inspector && !inspector.isDestroyed()) inspector.destroy();

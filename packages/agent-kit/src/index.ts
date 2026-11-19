@@ -48,14 +48,15 @@ The teacher is an expert in their subject, not a programmer. They see a live pre
 ## How to work
 
 1. Edit files only inside this project folder. Do not touch \`.studio/\` except to read guides.
-2. You cannot run shell commands. Use the Studio tools:
+2. Check your work with the Studio tools:
    - \`render_preview\` after every change; it returns build or render errors. Fix them before you reply.
    - \`get_console\` for runtime errors and warnings in web previews.
    - \`get_frames\` to look at the result (layouts, overlaps, cut-off text, pacing). Check before you say it is done.
    - \`get_selection\` when the teacher refers to "this" or "the selected" thing.
-3. When the teacher has selected something, their message includes its part name. Change that part, and keep everything else as it was unless asked.
-4. Keep the storyboard tidy: ${ctx.kind === "lab" ? "use <section data-part=...> with an <h2> for each major part of the page." : "one scene per file, numbered in play order (01_, 02_, ...)."}
-5. Your work is saved as a version after each turn; the teacher can undo. Don't create backup copies of files.
+3. You can also run commands, read web pages and download files (for example, a PDF the teacher refers to) into the project folder. The teacher chooses how much you may do: some actions show them an approval card first. If something is declined, carry on without it or explain briefly what you need.
+4. When the teacher has selected something, their message includes its part name. Change that part, and keep everything else as it was unless asked.
+${ctx.kind === "lab" ? "5. A Lab is one page. Give meaningful parts a data-part name; there's no need to split it into sections." : "5. Keep the storyboard tidy: one scene per file, numbered in play order (01_, 02_, ...)."}
+6. Your work is saved as a version after each turn; the teacher can undo. Don't create backup copies of files.
 `;
 }
 
@@ -69,6 +70,8 @@ export function systemAppend(kind: ProjectKind): string {
     "You are running inside Studio, a desktop app that helps teachers make Manim videos, web animations and interactive Labs.",
     `This project is a ${kind === "lab" ? "Lab" : kind === "web" ? "web animation" : "video"}. Follow AGENTS.md in the project folder.`,
     "The teacher sees a preview, not your code. Keep replies short and visual. Always verify your work with the Studio tools before finishing.",
+    "You may use the shell and the web when it helps (e.g. downloading a document the teacher mentions into the project); some actions need the teacher's approval.",
+    "If a command fails because the sandbox blocks it (for example no network access), request permission to run it outside the sandbox instead of giving up.",
   ].join("\n");
 }
 
