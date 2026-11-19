@@ -162,6 +162,7 @@ export async function sendToAgent(req: AgentRequest, emit: Emit): Promise<{ turn
       await commitAll(dir, `Turn (stopped): ${summarize(req.text)}`).catch(() => null);
       emit({ type: "turn.failed", projectId: req.projectId, turnId, error: message });
     } finally {
+      turn.finishedAt = new Date().toISOString();
       running.delete(req.projectId);
       const all = projects.chat(req.projectId);
       const i = all.findIndex((t) => t.turnId === turnId);

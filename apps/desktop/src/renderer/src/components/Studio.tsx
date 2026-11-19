@@ -10,6 +10,51 @@ import { VideoStage } from "./VideoStage";
 import { ShareDialog } from "./ShareDialog";
 import { Narration } from "./Narration";
 
+const LAYOUT_KEY = "studio.layout";
+const DEFAULT_LAYOUT = { left: 196, right: 360 };
+const LIMITS = { left: [150, 380], right: [300, 680] } as const;
+
+function loadLayout(): { left: number; right: number } {
+  try {
+    return { ...DEFAULT_LAYOUT, ...JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? "{}") };
+  } catch {
+    return DEFAULT_LAYOUT;
+  }
+}
+
+/** A thin drag handle between panels, like an IDE. Double-click resets. */
+function Splitter(props: { side: "left" | "right"; onDrag: (dx: number) => void; onReset: () => void }) {
+  return (
+    <div className="relative z-10">
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        title="Drag to resize · double-click to reset"
+        onDoubleClick={props.onReset}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          let x = e.clientX;
+          const move = (ev: PointerEvent) => {
+            props.onDrag(ev.clientX - x);
+            x = ev.clientX;
+          };
+          const up = () => {
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+            document.body.style.cursor = "";
+          };
+          document.body.style.cursor = "col-resize";
+          window.addEventListener("pointermove", move);
+          window.addEventListener("pointerup", up);
+        }}
+        className="group absolute inset-y-0 -left-[3px] w-[6px] cursor-col-resize"
+      >
+        <div className="mx-auto h-full w-px bg-line transition-colors group-hover:w-[2px] group-hover:bg-accent group-active:w-[2px] group-active:bg-accent" />
+      </div>
+    </div>
+  );
+}
+
 /** Projects whose first prompt has been sent (guards against React StrictMode double effects). */
 const kickedOff = new Set<string>();
 
@@ -25,6 +70,18 @@ export function Studio(props: {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
+  const [layout, setLayout] = useState(loadLayout);
+  const resize = (side: "left" | "right", dx: number) =>
+    setLayout((l) => {
+      const next = { ...l, [side]: Math.min(LIMITS[side][1], Math.max(LIMITS[side][0], l[side] + dx)) };
+      try {
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify(next));
+      } catch {
+        /* private mode */
+      }
+      return next;
+    });
+  const resetSide = (side: "left" | "right") => resize(side, DEFAULT_LAYOUT[side] - layout[side]);
   const manifest = p.project?.manifest;
   const scenes = manifest?.scenes ?? [];
   const activeScene = scenes.find((s) => s.id === sceneId) ?? scenes[scenes.length - 1];
@@ -89,7 +146,7 @@ export function Studio(props: {
   const listLabel = manifest.kind === "lab" ? "Sections" : "Scenes";
 
   return (
-    <div className="grid h-full grid-cols-[196px_minmax(0,1fr)_340px]">
+    <div className="grid h-full" style={{ gridTemplateColumns: `${layout.left}px 0px minmax(0,1fr) 0px ${layout.right}px` }}>
       {actionsHost &&
         createPortal(
           <>
@@ -101,7 +158,7 @@ export function Studio(props: {
           actionsHost,
         )}
 
-      <aside className="overflow-auto border-r border-line py-3.5 pl-3.5 pr-2.5">
+      <aside className="overflow-auto py-3.5 pl-3.5 pr-2.5">
         <h3 className="serif mx-1 mb-2.5 mt-0 text-[19px]">{listLabel}</h3>
         {scenes.length === 0 && (
           <div className="mx-1 text-[12.5px] leading-snug text-muted">
@@ -131,10 +188,19 @@ export function Studio(props: {
           </button>
         ))}
       </aside>
+      <Splitter side="left" onDrag={(dx) => resize("left", dx)} onReset={() => resetSide("left")} />
 
       <section className="min-h-0 min-w-0">
         {manifest.kind === "video" ? (
-          <VideoStage projectId={manifest.id} scene={activeScene} revision={p.revision} selection={selection} onSelect={setSelection} />
+          <VideoStage
+            projectId={manifest.id}
+            scene={activeScene}
+            scenes={scenes}
+            revision={p.revision}
+            selection={selection}
+            onSelect={setSelection}
+            onActiveScene={setSceneId}
+          />
         ) : (
           <WebPreview
             projectId={manifest.id}
@@ -149,6 +215,7 @@ export function Studio(props: {
           />
         )}
       </section>
+      <Splitter side="right" onDrag={(dx) => resize("right", -dx)} onReset={() => resetSide("right")} />
 
       <Chat
         projectId={manifest.id}
@@ -168,11 +235,14 @@ export function Studio(props: {
           manifest.kind === "lab" ? undefined : (
             <Narration
               projectId={manifest.id}
-              scene={activeScene}
+              kind={manifest.kind === "web" ? "web" : "video"}
+              scenes={scenes}
+              activeSceneId={activeScene?.id}
               revision={p.revision}
               voiceSettings={manifest.voice}
               busy={p.busy}
-              onAsk={(text) => void p.send(text, { sceneId: activeScene?.id })}
+              onAsk={(text, sceneId) => void p.send(text, { sceneId: sceneId ?? activeScene?.id })}
+              onSelectScene={setSceneId}
             />
           )
         }

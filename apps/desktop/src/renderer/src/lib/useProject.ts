@@ -62,14 +62,14 @@ export function useProject(id: string) {
           case "turn.completed":
             setBusy(false);
             setTurns((ts) =>
-              ts.map((t) => (t.turnId === e.turnId ? { ...t, status: "done", commit: e.commit, steps: t.steps.map((s) => ({ ...s, status: s.status === "running" ? "done" : s.status })) } : t)),
+              ts.map((t) => (t.turnId === e.turnId ? { ...t, status: "done", commit: e.commit, finishedAt: new Date().toISOString(), steps: t.steps.map((s) => ({ ...s, status: s.status === "running" ? "done" : s.status })) } : t)),
             );
             setRevision((r) => r + 1);
             void studio.projects.open(idRef.current).then((p) => setProject((cur) => (cur ? { ...cur, manifest: p.manifest } : p)));
             break;
           case "turn.failed":
             setBusy(false);
-            setTurns((ts) => ts.map((t) => (t.turnId === e.turnId ? { ...t, status: "error", error: e.error } : t)));
+            setTurns((ts) => ts.map((t) => (t.turnId === e.turnId ? { ...t, status: "error", error: e.error, finishedAt: new Date().toISOString() } : t)));
             setRevision((r) => r + 1);
             break;
         }

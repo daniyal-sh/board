@@ -15,6 +15,7 @@ import * as cloud from "./publish";
 import { setupVideoEnv, videoEnvStatus, manimEnv, runtime } from "./video/env";
 import { video } from "./video/renderer";
 import * as voice from "./voice";
+import { autoNarrate, retimeScene } from "./narrate";
 import { spawn } from "node:child_process";
 
 registerPreviewScheme();
@@ -58,12 +59,8 @@ function handle<A extends unknown[], R>(channel: string, fn: (...args: A) => R |
 }
 
 /** Scenes follow the voice: re-render (video) or rebuild (web) once narration changes. */
-async function afterNarration(id: string, scene: string, progress: (m: string) => void): Promise<void> {
-  if (projects.manifest(id).kind === "video" && videoEnvStatus().ready) {
-    progress("Re-timing the scene to your narration…");
-    await video.renderPreview(id, scene);
-  }
-  emit({ type: "preview.updated", projectId: id });
+function afterNarration(id: string, scene: string, progress: (m: string) => void): Promise<void> {
+  return retimeScene(id, scene, progress, emit);
 }
 
 function registerIpc(): void {
@@ -97,9 +94,13 @@ function registerIpc(): void {
     emit({ type: "preview.updated", projectId: id });
   });
   handle(IPC.projectsUndo, async (id: string) => {
-    await undoLast(projects.dir(id));
+    const r = await undoLast(projects.dir(id));
     emit({ type: "preview.updated", projectId: id });
+    return r;
   });
+  handle(IPC.voiceAuto, (id: string, opts: { voice: string; speed: number }) =>
+    autoNarrate(id, opts, emit, (m) => win?.webContents.send(IPC.voiceProgress, m)),
+  );
 
   handle(IPC.buildPreview, async (id: string, sceneId?: string) => {
     if (projects.manifest(id).kind !== "video") return buildPreview(id);
@@ -135,6 +136,7 @@ function registerIpc(): void {
     return fs.existsSync(f) ? `${PREVIEW_SCHEME}://${id}/scenes/${sceneId}.mp4?v=${fs.statSync(f).mtimeMs}` : null;
   });
   handle(IPC.videoTimeline, (id: string, sceneId: string) => video.timeline(id, sceneId) ?? null);
+  handle(IPC.videoFull, (id: string) => video.fullPreview(id, (m) => win?.webContents.send(IPC.videoProgress, m)));
   handle(IPC.videoExport, async (id: string) => {
     const m = projects.manifest(id);
     const res = await dialog.showSaveDialog(win!, {

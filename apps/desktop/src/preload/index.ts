@@ -47,6 +47,8 @@ const api: StudioApi = {
     onSetupProgress: (cb) => subscribe(IPC.videoSetupProgress, cb),
     sceneUrl: (id, scene) => invoke(IPC.videoSceneUrl, id, scene),
     timeline: (id, scene) => invoke(IPC.videoTimeline, id, scene),
+    fullPreview: (id) => invoke(IPC.videoFull, id),
+    onProgress: (cb) => subscribe<string>(IPC.videoProgress, cb),
     exportMp4: (id) => invoke(IPC.videoExport, id),
   },
   voice: {
@@ -57,6 +59,7 @@ const api: StudioApi = {
     generate: (id, scene, opts) => invoke(IPC.voiceGenerate, id, scene, opts),
     saveRecording: (id, scene, pcm) => invoke(IPC.voiceRecording, id, scene, pcm),
     remove: (id, scene) => invoke(IPC.voiceRemove, id, scene),
+    autoNarrate: (id, opts) => invoke(IPC.voiceAuto, id, opts),
     onProgress: (cb) => subscribe<string>(IPC.voiceProgress, cb),
   },
   publish: {

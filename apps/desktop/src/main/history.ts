@@ -62,8 +62,14 @@ export async function restoreTo(dir: string, oid: string, message: string): Prom
 }
 
 /** Undo the last turn: restore the parent of HEAD. */
-export async function undoLast(dir: string): Promise<string | null> {
+/**
+ * Undo the last change: restore the parent of HEAD. Returns the commit that was undone
+ * (restore it again to redo), or null when there's nothing to undo.
+ */
+export async function undoLast(dir: string): Promise<{ undone: string; message: string } | null> {
   const [head, parent] = await git.log({ fs, dir, depth: 2 });
   if (!head || !parent) return null;
-  return restoreTo(dir, parent.oid, `Undo: ${head.commit.message.trim()}`);
+  const message = head.commit.message.trim().replace(/^Turn( \(stopped\))?: /, "");
+  await restoreTo(dir, parent.oid, `Undo: ${message}`);
+  return { undone: head.oid, message };
 }

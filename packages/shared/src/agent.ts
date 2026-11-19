@@ -63,4 +63,5 @@ export interface ChatTurn {
   error?: string;
   commit?: string;
   startedAt: string;
+  finishedAt?: string;
 }

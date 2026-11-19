@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { PROJECT_KINDS, type AgentSettings, type CreateProjectInput, type ProjectKind, type ProjectLength, type ProjectSummary, type ProviderStatus } from "@studio/shared";
 import { studio, timeAgo } from "../lib/api";
 import { ArrowRight, KindGlyph } from "./Icons";
-import { ModelPicker } from "./ModelPicker";
+import { AgentControls } from "./ModelPicker";
 
 const SUGGESTIONS: { text: string; kind: ProjectKind }[] = [
   { text: "Why does the unit circle give us sine and cosine?", kind: "video" },
@@ -89,10 +89,10 @@ export function Home(props: {
           />
           <div className="mt-1.5 flex items-center gap-2">
             {agent && (
-              <ModelPicker
+              <AgentControls
                 value={agent}
                 providers={props.providers}
-                align="left"
+                placement="down"
                 onChange={(a) => {
                   setAgent(a);
                   void studio.agents.setDefaults(a);

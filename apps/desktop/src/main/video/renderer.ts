@@ -146,9 +146,83 @@ async function frames(projectId: string, sceneId: string | undefined, times: num
   }
 }
 
+/** A draft is out of date when its scene file or narration changed after it was rendered. */
+function draftIsStale(dir: string, id: string): boolean {
+  const mp4 = join(dir, "build", "scenes", `${id}.mp4`);
+  if (!fs.existsSync(mp4)) return true;
+  const rendered = fs.statSync(mp4).mtimeMs;
+  const inputs = [join(dir, "scenes", `${id}.py`), join(dir, "build", "narration", `${id}.json`)];
+  return inputs.some((f) => fs.existsSync(f) && fs.statSync(f).mtimeMs > rendered);
+}
+
+export interface FullPreview {
+  ok: boolean;
+  /** studio-preview URL of the joined draft. */
+  url?: string;
+  duration: number;
+  /** Where each scene sits in the joined video. */
+  segments: { sceneId: string; title: string; start: number; end: number }[];
+  /** Scenes that failed to render (they're left out of the preview). */
+  failed: { sceneId: string; title: string; log: string }[];
+}
+
+function concat(out: string, inputs: string[], cwd: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(runtime.python, ["-m", "studio_manim.concat", out, ...inputs], { cwd, env: manimEnv(), windowsHide: true });
+    let err = "";
+    child.stderr.on("data", (d) => (err += d));
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(cleanLog(err) || "Could not join the scenes"))));
+  });
+}
+
+/**
+ * The whole video as one draft: render scenes that are missing or out of date, then join the
+ * drafts (no re-encoding). Reused as long as no scene changed.
+ */
+async function fullPreview(projectId: string, progress: (message: string) => void): Promise<FullPreview> {
+  const dir = projects.dir(projectId);
+  const scenes = projects.manifest(projectId).scenes;
+  const failed: FullPreview["failed"] = [];
+  if (!videoEnvStatus().ready) return { ok: false, duration: 0, segments: [], failed: [{ sceneId: "", title: "", log: "Video tools are not installed yet." }] };
+
+  const stale = scenes.filter((s) => draftIsStale(dir, s.id));
+  for (const [i, s] of stale.entries()) {
+    progress(`Rendering “${s.title}” (${i + 1} of ${stale.length})…`);
+    const r = await render(projectId, s.id, "draft");
+    if (!r.ok) failed.push({ sceneId: s.id, title: s.title, log: r.log });
+  }
+
+  const parts = scenes
+    .map((s) => ({ s, file: join(dir, "build", "scenes", `${s.id}.mp4`), tl: timeline(projectId, s.id) }))
+    .filter((p) => fs.existsSync(p.file) && !failed.some((f) => f.sceneId === p.s.id));
+  if (!parts.length) return { ok: false, duration: 0, segments: [], failed };
+
+  const segments: FullPreview["segments"] = [];
+  let t = 0;
+  for (const p of parts) {
+    const d = p.tl?.duration ?? 0;
+    segments.push({ sceneId: p.s.id, title: p.s.title, start: t, end: t + d });
+    t += d;
+  }
+
+  const out = join(dir, "build", "full.mp4");
+  const manifestFile = join(dir, "build", "full.json");
+  const key = JSON.stringify(parts.map((p) => [p.s.id, fs.statSync(p.file).mtimeMs]));
+  const cachedKey = fs.existsSync(manifestFile) ? (JSON.parse(fs.readFileSync(manifestFile, "utf8")) as { key: string }).key : "";
+  if (!fs.existsSync(out) || cachedKey !== key) {
+    progress("Joining the scenes…");
+    await concat(out, parts.map((p) => p.file), dir);
+    fs.writeFileSync(manifestFile, JSON.stringify({ key }));
+  }
+  const url = `studio-preview://${projectId}/full.mp4?v=${Math.round(fs.statSync(out).mtimeMs)}`;
+  return { ok: true, url, duration: t, segments, failed };
+}
+
 export const video = {
   renderPreview: (projectId: string, sceneId?: string) => render(projectId, sceneId, "draft"),
   renderFinal: (projectId: string, sceneId: string) => render(projectId, sceneId, "final"),
+  fullPreview,
   frames,
   timeline,
 };

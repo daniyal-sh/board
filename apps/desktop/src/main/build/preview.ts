@@ -28,9 +28,28 @@ export function handlePreviewProtocol(): void {
     const file = normalize(join(buildDir, decodeURIComponent(url.pathname)));
     if (!file.startsWith(buildDir + sep) || !fs.existsSync(file)) return new Response("Not found", { status: 404 });
     const type = file.endsWith(".html") ? "text/html; charset=utf-8" : file.endsWith(".mp4") ? "video/mp4" : file.endsWith(".wav") ? "audio/wav" : file.endsWith(".png") ? "image/png" : "application/octet-stream";
-    return new Response(fs.readFileSync(file), {
-      headers: { "content-type": type, "cache-control": "no-store", "content-security-policy": PREVIEW_CSP },
-    });
+    const headers: Record<string, string> = {
+      "content-type": type,
+      "cache-control": "no-store",
+      "content-security-policy": PREVIEW_CSP,
+      "accept-ranges": "bytes",
+    };
+    // <video>/<audio> need byte ranges to seek; without them the player can't jump around.
+    const size = fs.statSync(file).size;
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get("range") ?? "");
+    if (range && (range[1] || range[2])) {
+      let start = range[1] ? Number(range[1]) : size - Number(range[2]);
+      let end = range[1] && range[2] ? Number(range[2]) : size - 1;
+      start = Math.max(0, start);
+      end = Math.min(size - 1, end);
+      if (start > end) return new Response(null, { status: 416, headers: { ...headers, "content-range": `bytes */${size}` } });
+      const fd = fs.openSync(file, "r");
+      const chunk = Buffer.alloc(end - start + 1);
+      fs.readSync(fd, chunk, 0, chunk.length, start);
+      fs.closeSync(fd);
+      return new Response(chunk, { status: 206, headers: { ...headers, "content-range": `bytes ${start}-${end}/${size}`, "content-length": String(chunk.length) } });
+    }
+    return new Response(fs.readFileSync(file), { headers: { ...headers, "content-length": String(size) } });
   });
 }
 

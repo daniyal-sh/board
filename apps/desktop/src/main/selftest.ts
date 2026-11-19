@@ -279,6 +279,21 @@ async function uiCase(out: string, report: Record<string, unknown>) {
   report.uiOpened = await clickText(target);
   await wait(5000);
   await shot("studio");
+  // Scripted steps: [{"click":"text"},{"css":"selector"},{"wait":ms},{"shot":"name"},{"js":"code"}]
+  for (const step of JSON.parse(process.env.STUDIO_SELFTEST_UI_STEPS ?? "[]") as Record<string, string | number>[]) {
+    if (step.click) report[`click:${step.click}`] = await clickText(String(step.click));
+    if (step.css) report[`css:${step.css}`] = await js(`(() => { const el = document.querySelector(${JSON.stringify(step.css)}); if (el) { el.click(); return true } return false })()`);
+    if (step.js) await js(String(step.js));
+    if (step.wait) await wait(Number(step.wait));
+    if (step.shot) await shot(String(step.shot));
+  }
+  if (process.env.STUDIO_SELFTEST_UI_CLICK) {
+    report.uiClick = await clickText(process.env.STUDIO_SELFTEST_UI_CLICK);
+    await wait(Number(process.env.STUDIO_SELFTEST_UI_WAIT ?? 8000));
+    await js(`(() => { const v = document.querySelector("video"); if (v) v.currentTime = Number(${JSON.stringify(process.env.STUDIO_SELFTEST_UI_SEEK ?? "9.5")}); })()`);
+    await wait(1500);
+    await shot("click");
+  }
   await js(`document.querySelector('button[title^="Choose the assistant"]')?.click()`);
   await wait(4000);
   await shot("picker");
@@ -316,6 +331,44 @@ export async function runSelftest(out: string): Promise<void> {
       }
     }
     if (mode === "publish") await publishCase(report);
+    if (mode === "autonarrate") {
+      const target = projects.list().find((x) => x.kind === "video" && /selftest video/i.test(x.title));
+      if (!target) throw new Error("No selftest video project");
+      const voice = await import("./voice");
+      for (const s of projects.manifest(target.id).scenes) voice.removeNarration(target.id, s.id);
+      const t = Date.now();
+      const progress: string[] = [];
+      const { autoNarrate } = await import("./narrate");
+      const r = await autoNarrate(target.id, { voice: "af_heart", speed: 1 }, (e) => e.type === "step" && e.status === "done" && console.log("[step]", e.label, e.detail ?? ""), (m) => progress.push(m));
+      const { video } = await import("./video/renderer");
+      report.autonarrate = {
+        minutes: ((Date.now() - t) / 60000).toFixed(1),
+        result: r,
+        progress: progress.filter((m) => !/Downloading/.test(m)).slice(-8),
+        scripts: Object.fromEntries(projects.manifest(target.id).scenes.map((s) => [s.id, voice.readScript(target.id, s.id)])),
+        marks: Object.fromEntries(projects.manifest(target.id).scenes.map((s) => [s.id, video.timeline(target.id, s.id)?.marks])),
+        durations: Object.fromEntries(projects.manifest(target.id).scenes.map((s) => [s.id, video.timeline(target.id, s.id)?.duration])),
+      };
+    }
+    if (mode === "full") {
+      const { video } = await import("./video/renderer");
+      const target = projects.list().find((x) => x.kind === "video" && /selftest video/i.test(x.title));
+      if (!target) throw new Error("No selftest video project; run STUDIO_SELFTEST_MODE=video first");
+      const run = async (label: string) => {
+        const msgs: string[] = [];
+        const t = Date.now();
+        const r = await video.fullPreview(target.id, (m) => msgs.push(m));
+        report[label] = { ms: Date.now() - t, ok: r.ok, duration: r.duration, segments: r.segments, failed: r.failed, progress: msgs };
+      };
+      await run("full_first");
+      await run("full_cached");
+      // Edit one scene: only it should re-render.
+      const f = join(target.dir, "scenes", "02_end.py");
+      fs.writeFileSync(f, fs.readFileSync(f, "utf8").replace("That slope is the derivative.", "And that slope is the derivative!"));
+      await run("full_after_edit");
+      const frames = await video.frames(target.id, undefined, []);
+      void frames;
+    }
     if (mode === "agent" || mode === "all") {
       await agentCase(out, (process.env.STUDIO_SELFTEST_AGENT as AgentProviderId) ?? "claude", report);
     }

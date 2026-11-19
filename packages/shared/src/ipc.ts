@@ -9,6 +9,16 @@ export interface VideoEnvStatus {
 }
 
 /** Written by the studio_manim plugin for each rendered scene. Coordinates are 0–1 of the frame. */
+export interface FullPreview {
+  ok: boolean;
+  url?: string;
+  duration: number;
+  /** Where each scene sits in the joined video, in seconds. */
+  segments: { sceneId: string; title: string; start: number; end: number }[];
+  /** Scenes that failed to render (left out of the preview). */
+  failed: { sceneId: string; title: string; log: string }[];
+}
+
 export interface SceneTimeline {
   scene: string;
   duration: number;
@@ -104,7 +114,8 @@ export interface StudioApi {
     remove(id: string): Promise<void>;
     history(id: string): Promise<HistoryEntry[]>;
     restore(id: string, entryId: string): Promise<void>;
-    undo(id: string): Promise<void>;
+    /** Undo the last change. Returns the undone version (restore it to redo), or null. */
+    undo(id: string): Promise<{ undone: string; message: string } | null>;
   };
   build: {
     /** Lab / web: rebuild the preview. Video: render a draft of one scene. */
@@ -121,6 +132,9 @@ export interface StudioApi {
     /** URL of the latest draft render for a scene, or null. */
     sceneUrl(projectId: string, sceneId: string): Promise<string | null>;
     timeline(projectId: string, sceneId: string): Promise<SceneTimeline | null>;
+    /** All scenes joined into one draft (renders missing or changed scenes first). */
+    fullPreview(projectId: string): Promise<FullPreview>;
+    onProgress(cb: (message: string) => void): () => void;
     exportMp4(projectId: string): Promise<{ path: string } | null>;
   };
   voice: {
@@ -132,6 +146,8 @@ export interface StudioApi {
     /** Raw 16 kHz mono samples of the teacher's recording. */
     saveRecording(projectId: string, sceneId: string, pcm16k: Float32Array): Promise<NarrationInfo>;
     remove(projectId: string, sceneId: string): Promise<void>;
+    /** Assistant writes every scene's script, then each is voiced and re-timed. */
+    autoNarrate(projectId: string, opts: { voice: string; speed: number }): Promise<{ voiced: string[]; failed: { sceneId: string; error: string }[] }>;
     onProgress(cb: (message: string) => void): () => void;
   };
   /** Optional: only needed to publish links. Everything else works without an account. */
@@ -176,6 +192,8 @@ export const IPC = {
   videoSceneUrl: "video:sceneUrl",
   videoTimeline: "video:timeline",
   videoExport: "video:export",
+  videoFull: "video:full",
+  videoProgress: "video:progress",
   voiceList: "voice:list",
   voiceScript: "voice:script",
   voiceSaveScript: "voice:saveScript",
@@ -183,6 +201,7 @@ export const IPC = {
   voiceGenerate: "voice:generate",
   voiceRecording: "voice:recording",
   voiceRemove: "voice:remove",
+  voiceAuto: "voice:auto",
   voiceProgress: "voice:progress",
   publishAccount: "publish:account",
   publishSignIn: "publish:signIn",
