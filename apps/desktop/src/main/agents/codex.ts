@@ -1,4 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import os from "node:os";
+import type { ModelOption } from "@studio/shared";
 import { createInterface } from "node:readline";
 import { systemAppend } from "@studio/agent-kit";
 import { executableFor, spawnOptionsFor } from "./detect";
@@ -90,6 +92,36 @@ class AppServer {
 
 const servers = new Map<string, AppServer>();
 
+/** Models the signed-in Codex account can use, with their reasoning levels and speed tiers. */
+export async function listCodexModels(): Promise<ModelOption[]> {
+  const server = new AppServer(await executableFor("codex"), os.homedir());
+  try {
+    await server.ready;
+    const out: ModelOption[] = [];
+    let cursor: string | null = null;
+    do {
+      const res = await server.request("model/list", { cursor, limit: 100 });
+      for (const m of (res.data as Json[]) ?? []) {
+        if (m.hidden) continue;
+        const tiers = (m.serviceTiers as Json[] | undefined) ?? [];
+        const fast = tiers.find((t) => t.id === "priority");
+        out.push({
+          id: m.id as string,
+          label: m.displayName as string,
+          description: (m.description as string) || undefined,
+          efforts: ((m.supportedReasoningEfforts as Json[]) ?? []).map((e) => e.reasoningEffort as string),
+          defaultEffort: (m.defaultReasoningEffort as string) ?? undefined,
+          fast: fast ? { label: (fast.name as string) ?? "Fast", description: (fast.description as string) ?? undefined } : undefined,
+        });
+      }
+      cursor = (res.nextCursor as string | null) ?? null;
+    } while (cursor);
+    return out;
+  } finally {
+    server.kill();
+  }
+}
+
 async function serverFor(projectId: string, dir: string): Promise<AppServer> {
   let s = servers.get(projectId);
   if (!s || s.closed) {
@@ -108,6 +140,7 @@ export const codexDriver: AgentDriver = {
       approvalPolicy: "never",
       sandbox: "workspace-write",
       developerInstructions: systemAppend(opts.kind),
+      ...(opts.settings.model ? { model: opts.settings.model } : {}),
       config: {
         mcp_servers: {
           // Studio's own tools: approve automatically and allow long video renders.
@@ -173,11 +206,16 @@ export const codexDriver: AgentDriver = {
       }
     });
 
+    // Model, reasoning and speed apply per turn, so changing them in the picker takes effect immediately.
     const started = await server.request("turn/start", {
       threadId,
       input: [{ type: "text", text: opts.prompt, text_elements: [] }],
+      ...(opts.settings.model ? { model: opts.settings.model } : {}),
+      ...(opts.settings.effort ? { effort: opts.settings.effort } : {}),
+      serviceTier: opts.settings.fast ? "priority" : null,
     });
     turnId = ((started.turn as Json)?.id as string) ?? undefined;
+    if (process.env.STUDIO_DEBUG) console.log(`[codex] model=${opts.settings.model ?? "default"} effort=${opts.settings.effort ?? "auto"} serviceTier=${opts.settings.fast ? "priority" : "default"}`);
     const onAbort = () => {
       if (turnId) void server.request("turn/interrupt", { threadId, turnId }).catch(() => {});
     };

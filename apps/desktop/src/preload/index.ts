@@ -21,7 +21,10 @@ const api: StudioApi = {
     interrupt: (id) => invoke(IPC.agentInterrupt, id),
     onEvent: (cb) => subscribe<AgentEvent>(IPC.agentEvent, cb),
     setSelection: (id, sel) => invoke(IPC.agentSelection, id, sel),
-    setProvider: (id, p) => invoke(IPC.agentProvider, id, p),
+    models: (provider, refresh) => invoke(IPC.agentModels, provider, refresh),
+    setSettings: (id, settings) => invoke(IPC.agentSettings, id, settings),
+    defaults: () => invoke(IPC.agentDefaults),
+    setDefaults: (settings) => invoke(IPC.agentSetDefaults, settings),
   },
   projects: {
     list: () => invoke(IPC.projectsList),

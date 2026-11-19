@@ -27,6 +27,8 @@ import type {
   PublishInfo,
   NarrationInfo,
   VoiceOption,
+  AgentSettings,
+  ProviderModels,
 } from "./project.ts";
 
 export interface AppInfo {
@@ -41,6 +43,8 @@ export interface CreateProjectInput {
   length: ProjectLength;
   title?: string;
   provider?: AgentProviderId;
+  /** Model, reasoning and speed for the new project (defaults are used when omitted). */
+  agent?: AgentSettings;
 }
 
 export interface OpenProject {
@@ -85,7 +89,12 @@ export interface StudioApi {
     onEvent(cb: (e: AgentEvent) => void): () => void;
     /** Tell the agent tools what the teacher has selected (or clear it). */
     setSelection(projectId: string, selection: Selection | null): Promise<void>;
-    setProvider(projectId: string, provider: AgentProviderId): Promise<void>;
+    /** Models, reasoning levels and fast mode each installed assistant offers (cached; refresh re-reads the CLI). */
+    models(provider: AgentProviderId, refresh?: boolean): Promise<ProviderModels>;
+    setSettings(projectId: string, settings: AgentSettings): Promise<void>;
+    /** Settings used for new projects. */
+    defaults(): Promise<AgentSettings>;
+    setDefaults(settings: AgentSettings): Promise<void>;
   };
   projects: {
     list(): Promise<ProjectSummary[]>;
@@ -157,7 +166,10 @@ export const IPC = {
   buildExportHtml: "build:exportHtml",
   buildCopyHtml: "build:copyHtml",
   agentSelection: "agent:selection",
-  agentProvider: "agent:provider",
+  agentModels: "agent:models",
+  agentSettings: "agent:settings",
+  agentDefaults: "agent:defaults",
+  agentSetDefaults: "agent:setDefaults",
   videoStatus: "video:status",
   videoSetup: "video:setup",
   videoSetupProgress: "video:setupProgress",

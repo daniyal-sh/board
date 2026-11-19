@@ -57,6 +57,9 @@ export const claudeDriver: AgentDriver = {
         abortController: abort,
         includePartialMessages: true,
         settingSources: ["project"],
+        ...(opts.settings.model && opts.settings.model !== "default" ? { model: opts.settings.model } : {}),
+        ...(opts.settings.effort ? { effort: opts.settings.effort as "low" | "medium" | "high" | "xhigh" | "max" } : {}),
+        settings: { fastMode: Boolean(opts.settings.fast) },
         systemPrompt: { type: "preset", preset: "claude_code", append: systemAppend(opts.kind) },
         mcpServers: { studio: { type: "http", url: opts.mcpUrl } },
         allowedTools: ["Read", "Glob", "Grep", "TodoWrite", "mcp__studio__render_preview", "mcp__studio__get_console", "mcp__studio__get_frames", "mcp__studio__get_selection"],
@@ -72,6 +75,9 @@ export const claudeDriver: AgentDriver = {
     let wroteText = false;
     for await (const msg of q as AsyncIterable<SDKMessage>) {
       if ("session_id" in msg && msg.session_id) sessionId = msg.session_id;
+      if (msg.type === "system" && msg.subtype === "init" && process.env.STUDIO_DEBUG) {
+        console.log(`[claude] model=${(msg as { model?: string }).model} effort=${opts.settings.effort ?? "auto"} fast=${Boolean(opts.settings.fast)}`);
+      }
       switch (msg.type) {
         case "stream_event": {
           if (msg.parent_tool_use_id) break;

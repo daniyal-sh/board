@@ -84,7 +84,8 @@ async function agentCase(out: string, provider: AgentProviderId, report: Record<
   const prompt =
     process.env.STUDIO_SELFTEST_PROMPT ??
     "Make a small Lab for Grade 9: a slider for the number of sides of a regular polygon (3 to 12) and a canvas drawing it, with the interior angle sum shown. Keep it short.";
-  const p = await projects.create({ kind: "lab", prompt, length: "short", provider });
+  const settings = process.env.STUDIO_SELFTEST_AGENT_SETTINGS ? JSON.parse(process.env.STUDIO_SELFTEST_AGENT_SETTINGS) : { provider };
+  const p = await projects.create({ kind: "lab", prompt, length: "short", agent: { ...settings, provider } });
   const events: AgentEvent[] = [];
   const done = new Promise<void>((resolve) => {
     void sendToAgent({ projectId: p.manifest.id, text: prompt }, (e) => {
@@ -278,6 +279,10 @@ async function uiCase(out: string, report: Record<string, unknown>) {
   report.uiOpened = await clickText(target);
   await wait(5000);
   await shot("studio");
+  await js(`document.querySelector('button[title^="Choose the assistant"]')?.click()`);
+  await wait(4000);
+  await shot("picker");
+  await js(`document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }))`);
   report.uiSelect = await clickText("Select");
   await wait(400);
   await shot("select");
@@ -302,6 +307,14 @@ export async function runSelftest(out: string): Promise<void> {
     if (mode === "voice" || mode === "all") await voiceCase(out, report);
     if (mode === "video" || mode === "all") await videoCase(out, report);
     if (mode === "ui") await uiCase(out, report);
+    if (mode === "models") {
+      const { providerModels } = await import("./agents/models");
+      for (const prov of ["claude", "codex"] as const) {
+        const t = Date.now();
+        const r = await providerModels(prov, true);
+        report[`models_${prov}`] = { ms: Date.now() - t, count: r.models.length, error: r.error, sample: r.models.slice(0, 4) };
+      }
+    }
     if (mode === "publish") await publishCase(report);
     if (mode === "agent" || mode === "all") {
       await agentCase(out, (process.env.STUDIO_SELFTEST_AGENT as AgentProviderId) ?? "claude", report);

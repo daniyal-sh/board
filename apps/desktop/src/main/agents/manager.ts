@@ -142,6 +142,7 @@ export async function sendToAgent(req: AgentRequest, emit: Emit): Promise<{ turn
           mcpUrl: toolServerUrl(req.projectId),
           readOnlyDirs: [join(paths.labKitDir, "node_modules"), join(paths.labKitDir, "src")],
           signal: abort.signal,
+          settings: manifest.agent,
         },
         onEvent,
       );

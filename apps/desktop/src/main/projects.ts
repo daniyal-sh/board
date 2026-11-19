@@ -11,6 +11,7 @@ import type {
   SceneMeta,
 } from "@studio/shared";
 import { commitAll, initHistory } from "./history";
+import { agentDefaults } from "./agents/models";
 import { paths } from "./paths";
 
 const MANIFEST = "project.json";
@@ -122,7 +123,7 @@ class ProjectStore {
       createdAt: now,
       updatedAt: now,
       scenes: [],
-      agent: { provider: input.provider ?? "claude" },
+      agent: input.agent ?? { ...agentDefaults(), ...(input.provider ? { provider: input.provider } : {}) },
     };
     writeJson(join(dir, MANIFEST), manifest);
     for (const [rel, content] of Object.entries(templates(input.kind, title))) {

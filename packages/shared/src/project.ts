@@ -11,6 +11,36 @@ export type ProjectLength = "short" | "explainer" | "lesson";
 
 export type AgentProviderId = "claude" | "codex";
 
+/** Which assistant runs a project, and how. Unset fields use the provider's own defaults. */
+export interface AgentSettings {
+  provider: AgentProviderId;
+  /** Model id as the provider names it, e.g. "opus" or "gpt-6.2-sol". */
+  model?: string;
+  /** Reasoning effort, e.g. "low" | "medium" | "high" | "xhigh" | "max" (Codex also has "ultra"). */
+  effort?: string;
+  /** Faster responses (Claude fast mode / Codex priority tier), usually at higher usage. */
+  fast?: boolean;
+}
+
+/** A model a provider offers, as reported by the installed CLI. */
+export interface ModelOption {
+  id: string;
+  label: string;
+  description?: string;
+  efforts: string[];
+  defaultEffort?: string;
+  /** Present when the model has a faster mode. */
+  fast?: { label: string; description?: string };
+}
+
+export interface ProviderModels {
+  provider: AgentProviderId;
+  models: ModelOption[];
+  /** When the list was read from the CLI (ISO). */
+  fetchedAt?: string;
+  error?: string;
+}
+
 export type SceneStatus = "sketch" | "rendering" | "rendered" | "error";
 
 /** A scene (video / web animation) or a section (lab). */
@@ -46,7 +76,7 @@ export interface ProjectManifest {
   createdAt: string;
   updatedAt: string;
   scenes: SceneMeta[];
-  agent: { provider: AgentProviderId; model?: string };
+  agent: AgentSettings;
   /** Narration voice settings (AI voice). */
   voice?: { voice: string; speed: number };
   publish?: PublishInfo;

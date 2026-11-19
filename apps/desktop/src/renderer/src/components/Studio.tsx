@@ -152,7 +152,7 @@ export function Studio(props: {
 
       <Chat
         projectId={manifest.id}
-        provider={manifest.agent.provider}
+        agent={manifest.agent}
         providers={props.providers}
         turns={p.turns}
         busy={p.busy}
@@ -176,9 +176,9 @@ export function Studio(props: {
             />
           )
         }
-        onProviderChange={async (prov) => {
-          await studio.agents.setProvider(manifest.id, prov);
-          await p.refresh();
+        onAgentChange={async (agent) => {
+          p.setProject((cur) => (cur ? { ...cur, manifest: { ...cur.manifest, agent } } : cur));
+          await studio.agents.setSettings(manifest.id, agent);
         }}
       />
 

@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentProviderId, ChatTurn, ProviderStatus, Selection } from "@studio/shared";
+import type { AgentSettings, ChatTurn, ProviderStatus, Selection } from "@studio/shared";
 import { studio } from "../lib/api";
 import { ArrowUp, Check, Stop } from "./Icons";
 import { Markdown } from "./Markdown";
+import { ModelPicker } from "./ModelPicker";
 
-const PROVIDER_COLOR: Record<AgentProviderId, string> = { claude: "#D97757", codex: "#17171C" };
 
 function Steps({ steps }: { steps: ChatTurn["steps"] }) {
   if (!steps.length) return null;
@@ -43,7 +43,7 @@ function Steps({ steps }: { steps: ChatTurn["steps"] }) {
 
 export function Chat(props: {
   projectId: string;
-  provider: AgentProviderId;
+  agent: AgentSettings;
   providers: ProviderStatus[] | null;
   turns: ChatTurn[];
   busy: boolean;
@@ -52,7 +52,7 @@ export function Chat(props: {
   sceneLabel?: string;
   onClearSelection: () => void;
   onSend: (text: string) => void;
-  onProviderChange: (p: AgentProviderId) => void;
+  onAgentChange: (a: AgentSettings) => void;
   /** Narration panel for videos and web animations. */
   narration?: React.ReactNode;
 }) {
@@ -76,7 +76,6 @@ export function Chat(props: {
     setText("");
   }
 
-  const available = props.providers?.filter((p) => p.installed) ?? [];
 
   return (
     <aside className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] border-l border-line bg-white/40">
@@ -94,23 +93,7 @@ export function Chat(props: {
           <h3 className="serif m-0 text-[21px]">Assistant</h3>
         )}
         <span className="flex-1" />
-        <label className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] text-ink-2 hover:bg-black/5">
-          <span className="grid h-4 w-4 place-items-center rounded-[5px] text-[9px] font-bold text-white" style={{ background: PROVIDER_COLOR[props.provider] }}>
-            {props.provider === "claude" ? "C" : "◎"}
-          </span>
-          <select
-            className="cursor-pointer bg-transparent outline-none"
-            value={props.provider}
-            disabled={props.busy}
-            onChange={(e) => props.onProviderChange(e.target.value as AgentProviderId)}
-          >
-            {(available.length ? available : [{ id: props.provider, label: props.provider }]).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ModelPicker value={props.agent} providers={props.providers} disabled={props.busy} onChange={props.onAgentChange} onMakeDefault={(a) => void studio.agents.setDefaults(a)} />
       </div>
 
       {tab === "narration" && props.narration ? (

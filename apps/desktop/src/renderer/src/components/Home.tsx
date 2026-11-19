@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { PROJECT_KINDS, type CreateProjectInput, type ProjectKind, type ProjectLength, type ProjectSummary, type ProviderStatus } from "@studio/shared";
+import { PROJECT_KINDS, type AgentSettings, type CreateProjectInput, type ProjectKind, type ProjectLength, type ProjectSummary, type ProviderStatus } from "@studio/shared";
 import { studio, timeAgo } from "../lib/api";
 import { ArrowRight, KindGlyph } from "./Icons";
+import { ModelPicker } from "./ModelPicker";
 
 const SUGGESTIONS: { text: string; kind: ProjectKind }[] = [
   { text: "Why does the unit circle give us sine and cosine?", kind: "video" },
@@ -29,10 +30,22 @@ export function Home(props: {
   const [kind, setKind] = useState<ProjectKind>("lab");
   const [length, setLength] = useState<ProjectLength>("explainer");
   const [recent, setRecent] = useState<ProjectSummary[]>([]);
+  const [agent, setAgent] = useState<AgentSettings | null>(null);
 
   useEffect(() => {
     void studio.projects.list().then(setRecent);
+    void studio.agents.defaults().then(setAgent);
   }, []);
+
+  // If the remembered assistant isn't usable on this computer, fall back to one that is.
+  useEffect(() => {
+    if (!agent || !props.providers) return;
+    const ok = (id: string) => props.providers!.some((p) => p.id === id && p.installed && p.authenticated !== false);
+    if (!ok(agent.provider)) {
+      const other = props.providers.find((p) => p.installed && p.authenticated !== false);
+      if (other) setAgent({ provider: other.id });
+    }
+  }, [agent, props.providers]);
 
   const ready = props.providers?.find((p) => p.installed && p.authenticated !== false);
   const noAgent = props.providers !== null && !ready;
@@ -40,7 +53,7 @@ export function Home(props: {
 
   function start() {
     if (!canStart) return;
-    props.onCreate({ kind, prompt: prompt.trim(), length, provider: ready?.id });
+    props.onCreate({ kind, prompt: prompt.trim(), length, agent: agent ?? { provider: ready!.id } });
   }
 
   return (
@@ -75,7 +88,17 @@ export function Home(props: {
             className="min-h-[76px] w-full resize-none bg-transparent text-[16px] leading-[1.55] outline-none placeholder:text-faint"
           />
           <div className="mt-1.5 flex items-center gap-2">
-            <span className="text-[12px] text-muted">Ctrl+Enter to start</span>
+            {agent && (
+              <ModelPicker
+                value={agent}
+                providers={props.providers}
+                align="left"
+                onChange={(a) => {
+                  setAgent(a);
+                  void studio.agents.setDefaults(a);
+                }}
+              />
+            )}
             <span className="flex-1" />
             <div className="seg">
               {(["short", "explainer", "lesson"] as ProjectLength[]).map((l) => (

@@ -2,8 +2,9 @@ import "./early-env";
 import fs from "node:fs";
 import { join } from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
-import { BRAND, IPC, type AgentEvent, type CreateProjectInput, type PublishRequest, type Selection, type Visibility } from "@studio/shared";
+import { BRAND, IPC, type AgentEvent, type AgentProviderId, type AgentSettings, type CreateProjectInput, type PublishRequest, type Selection, type Visibility } from "@studio/shared";
 import { providerStatus } from "./agents/detect";
+import { agentDefaults, providerModels, setAgentDefaults } from "./agents/models";
 import { interruptAgent, sendToAgent } from "./agents/manager";
 import { setSelection, startToolServer } from "./agents/tools";
 import { buildExport, buildPreview, handlePreviewProtocol, registerPreviewScheme, PREVIEW_SCHEME } from "./build/preview";
@@ -76,10 +77,14 @@ function registerIpc(): void {
   handle(IPC.agentSend, (req) => sendToAgent(req as Parameters<typeof sendToAgent>[0], emit));
   handle(IPC.agentInterrupt, (id: string) => interruptAgent(id));
   handle(IPC.agentSelection, (id: string, sel: Selection | null) => setSelection(id, sel ?? undefined));
-  handle(IPC.agentProvider, (id: string, provider: "claude" | "codex") => {
+  handle(IPC.agentModels, (provider: AgentProviderId, refresh?: boolean) => providerModels(provider, refresh));
+  handle(IPC.agentSettings, (id: string, settings: AgentSettings) => {
     const m = projects.manifest(id);
-    projects.saveManifest({ ...m, agent: { ...m.agent, provider } });
+    // A thread belongs to one provider; switching providers starts a fresh conversation there.
+    projects.saveManifest({ ...m, agent: settings });
   });
+  handle(IPC.agentDefaults, () => agentDefaults());
+  handle(IPC.agentSetDefaults, (settings: AgentSettings) => setAgentDefaults(settings));
 
   handle(IPC.projectsList, () => projects.list());
   handle(IPC.projectsCreate, (input: CreateProjectInput) => projects.create(input));

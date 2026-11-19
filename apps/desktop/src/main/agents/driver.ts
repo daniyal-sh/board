@@ -1,4 +1,4 @@
-import type { ProjectKind } from "@studio/shared";
+import type { AgentSettings, ProjectKind } from "@studio/shared";
 
 export interface TurnOptions {
   projectId: string;
@@ -12,6 +12,8 @@ export interface TurnOptions {
   /** Read-only folders the agent may look at (library type declarations). */
   readOnlyDirs: string[];
   signal: AbortSignal;
+  /** Model, reasoning effort and fast mode chosen in the picker. */
+  settings: AgentSettings;
 }
 
 /** Provider-neutral events a driver reports while a turn runs. */
