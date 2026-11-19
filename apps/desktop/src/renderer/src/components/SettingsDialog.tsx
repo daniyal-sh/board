@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import type { ProviderStatus, VideoEnvStatus } from "@studio/shared";
 import { errorMessage, studio } from "../lib/api";
 import { Modal } from "./Modal";
+import { ProviderLogo } from "./ProviderLogo";
 
-function Dot({ ok, label }: { ok: boolean | undefined; label: string }) {
-  return <span className={`text-[11.5px] font-medium ${ok ? "text-good" : "text-warn"}`}>● {label}</span>;
+/** Only problems get a label; something that works needs no badge. */
+function Issue({ label }: { label: string }) {
+  return <span className="tag border-warn-line bg-warn-soft text-warn">{label}</span>;
 }
 
 export function SettingsDialog(props: { onClose: () => void; onProviders: (p: ProviderStatus[]) => void }) {
@@ -34,14 +36,14 @@ export function SettingsDialog(props: { onClose: () => void; onProviders: (p: Pr
       {!providers && <div className="spinner my-3" />}
       {providers?.map((p) => (
         <div key={p.id} className="flex items-center gap-3 border-t border-line-2 py-3 first-of-type:border-0">
-          <span className="grid h-8 w-8 flex-none place-items-center rounded-[9px] text-[12px] font-bold text-white" style={{ background: p.id === "claude" ? "#D97757" : "#3F3F46" }}>
-            {p.id === "claude" ? "C" : "◎"}
+          <span className="grid h-8 w-8 flex-none place-items-center rounded-[9px] border border-line bg-surface-2 text-ink">
+            <ProviderLogo provider={p.id} size={18} />
           </span>
           <div className="min-w-0 flex-1">
             <b className="font-medium">{p.label}</b>
             <small className="block text-[12px] text-muted">{p.installed ? `${p.version ?? ""} · ${p.message ?? "signed in"}` : p.message}</small>
           </div>
-          <Dot ok={p.installed && p.authenticated !== false} label={!p.installed ? "Not installed" : p.authenticated === false ? "Sign in" : "Ready"} />
+          {!p.installed ? <Issue label="Not installed" /> : p.authenticated === false ? <Issue label="Not signed in" /> : null}
         </div>
       ))}
       <button className="btn btn-ghost btn-sm mt-1" onClick={() => void refresh()}>
@@ -55,9 +57,7 @@ export function SettingsDialog(props: { onClose: () => void; onProviders: (p: Pr
           <b className="font-medium">Manim Community + LaTeX</b>
           <small className="block text-[12px] text-muted">{installing ? setupLog ?? "Installing…" : "For videos. Installed into the app's own folder."}</small>
         </div>
-        {env?.ready && env.latex ? (
-          <Dot ok label="Ready" />
-        ) : (
+        {env?.ready && env.latex ? null : (
           <button
             className="btn btn-sm btn-dark"
             disabled={installing}
@@ -83,7 +83,6 @@ export function SettingsDialog(props: { onClose: () => void; onProviders: (p: Pr
           <b className="font-medium">manim-web and Lab libraries</b>
           <small className="block text-[12px] text-muted">Built in. Works offline.</small>
         </div>
-        <Dot ok label="Ready" />
       </div>
       {error && <div className="mt-2 whitespace-pre-wrap rounded-lg bg-bad-soft p-2.5 text-[12px] text-bad">{error}</div>}
 

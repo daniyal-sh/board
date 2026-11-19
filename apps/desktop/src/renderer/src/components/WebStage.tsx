@@ -188,6 +188,13 @@ export function WebStage(props: {
         <div
           className={`relative overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] ${props.aspect === "vertical" ? "h-full max-w-full" : "aspect-video max-h-full w-full"}`}
           style={props.aspect === "vertical" ? { aspectRatio: "9 / 16" } : undefined}
+          data-agent-view
+          data-project={props.projectId}
+          data-view={whole ? "whole animation" : "one scene"}
+          data-scene={(whole ? current?.title : props.scene?.title) ?? ""}
+          data-time={whole && current ? (time - current.start).toFixed(1) : time.toFixed(1)}
+          data-total-time={time.toFixed(1)}
+          data-playing={String(playing)}
         >
           {url ? (
             <iframe ref={frame} key={url} src={url} title="Preview" sandbox="allow-scripts allow-pointer-lock" className="h-full w-full border-0" />

@@ -64,7 +64,7 @@ class AppServer {
     };
     this.child.on("exit", (code, signal) => onGone(signal ? `signal ${signal}` : code !== null ? `exit code ${code}` : ""));
     this.child.on("error", (e) => onGone(/ENOENT/.test(String(e)) ? "Codex isn't installed" : String(e)));
-    this.ready = this.request("initialize", { clientInfo: { name: "apollo_board", title: "Apollo Board", version: "0.1.0" }, capabilities: null }, INITIALIZE_TIMEOUT_MS)
+    this.ready = this.request("initialize", { clientInfo: { name: "apollo_board", title: "Board", version: "0.1.0" }, capabilities: null }, INITIALIZE_TIMEOUT_MS)
       .then(() => this.notify("initialized", {}))
       .catch((e: Error) => {
         this.kill();
@@ -176,7 +176,7 @@ class AppServer {
         reply({ answers: {} });
         return;
       default:
-        this.send({ jsonrpc: "2.0", id, error: { code: -32601, message: `Apollo Board doesn't support ${method}` } });
+        this.send({ jsonrpc: "2.0", id, error: { code: -32601, message: `Board doesn't support ${method}` } });
     }
   }
 

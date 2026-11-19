@@ -4,7 +4,7 @@
 @import "@fontsource/geist-mono/500.css";
 
 /*
- * Apollo Study Space, adapted for Apollo Board (see daniyal-sh/apollo DESIGN.md):
+ * Apollo Study Space, adapted for Board (see daniyal-sh/apollo DESIGN.md):
  * off-white canvas, white panels with hairline zinc borders, graphite text, one solid indigo
  * action per screen, blue for the assistant, solid (never translucent) tinted surfaces.
  * Dark mode swaps the variables under html.dark.

@@ -1,6 +1,6 @@
 # Architecture
 
-**Apollo Board**, an open-source app by the Apollo team. The product name is one constant, `BRAND` in `packages/shared/src/brand.ts`.
+**Board**, an open-source app by Apollo (apollolearn.app). The product name is one constant, `BRAND` in `packages/shared/src/brand.ts`.
 
 A desktop app for teachers that makes three kinds of things with an AI agent the teacher already pays for (Claude Code or Codex). Everything runs and stays on the teacher's computer: there is no account, no server and no upload. The only network traffic is the assistant CLI talking to its own service (and, when the teacher allows it, commands or downloads the assistant runs).
 
@@ -51,7 +51,7 @@ Every agent turn ends with a commit, which drives Versions and Undo.
 
 The teacher picks the access level next to the model picker: Ask first (approval cards), Auto (commands and web inside the project folder) or Full access.
 
-Apollo Board tools (a local MCP server, 127.0.0.1 with a random token, scoped to the open project):
+Board tools (a local MCP server, 127.0.0.1 with a random token, scoped to the open project):
 
 | Tool | What it does |
 |---|---|

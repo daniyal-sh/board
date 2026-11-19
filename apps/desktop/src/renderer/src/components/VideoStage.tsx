@@ -230,6 +230,14 @@ export function VideoStage(props: {
         <div
           className={`relative overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] ${props.aspect === "vertical" ? "h-full max-w-full" : "aspect-video max-h-full w-full"}`}
           style={props.aspect === "vertical" ? { aspectRatio: "9 / 16" } : undefined}
+          // Read by the assistant's get_view tool: what the teacher is looking at right now.
+          data-agent-view
+          data-project={props.projectId}
+          data-view={mode === "full" ? "whole video" : "one scene"}
+          data-scene={(mode === "full" ? currentSegment?.title : props.scene?.title) ?? ""}
+          data-time={mode === "full" && currentSegment ? (time - currentSegment.start).toFixed(1) : time.toFixed(1)}
+          data-total-time={time.toFixed(1)}
+          data-playing={String(playing)}
         >
           {src ? (
             <>
@@ -364,7 +372,7 @@ function VideoSetup(props: { onReady: (s: VideoEnvStatus) => void }) {
       <div className="card max-w-[460px] p-6 animate-in">
         <h2 className="serif m-0 text-[28px]">One-time video setup</h2>
         <p className="mt-1 text-ink-2">
-          Videos are rendered on your computer with Manim. Apollo Board will download Python, Manim and LaTeX (about 300 MB) into its own folder. Nothing else on your
+          Videos are rendered on your computer with Manim. Board will download Python, Manim and LaTeX (about 300 MB) into its own folder. Nothing else on your
           computer changes.
         </p>
         {log.length > 0 && (

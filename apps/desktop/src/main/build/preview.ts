@@ -4,6 +4,7 @@ import { BrowserWindow, protocol } from "electron";
 import type { BuildResult } from "@studio/shared";
 import { projects } from "../projects";
 import { buildSingleFile } from "./bundle";
+import { spread } from "../inspect/sheet";
 
 export const PREVIEW_SCHEME = "studio-preview";
 
@@ -259,6 +260,199 @@ export function webGif(projectId: string, outPath: string, size: { width: number
       gif.finish();
       fs.writeFileSync(outPath, gif.bytes());
     } finally {
+      void win.loadURL("about:blank").catch(() => {});
+    }
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+// ---------------------------------------------------------------- web animations: steps
+
+export interface WebStepFrame {
+  t: number;
+  scene: string;
+  label: string;
+  png: Buffer;
+  layout: { name: string; type: string; box: { x0: number; y0: number; x1: number; y1: number } }[];
+}
+
+/**
+ * Load the recorded web animation in the hidden window and, at the end of each animation step,
+ * take a picture and measure what's on screen. `scene` limits it to one scene.
+ */
+export function webSteps(projectId: string, opts: { scene?: string; max?: number; pictures?: boolean } = {}): Promise<{ frames: WebStepFrame[]; console: ConsoleLine[]; duration: number }> {
+  const run = queue.then(async () => {
+    const vertical = projects.manifest(projectId).aspect === "vertical";
+    const win = inspectorWindow();
+    win.setContentSize(vertical ? 450 : 960, vertical ? 800 : 540);
+    const lines: ConsoleLine[] = [];
+    sink = lines;
+    try {
+      const q = ["still=1", opts.scene ? `scene=${encodeURIComponent(opts.scene)}&only=1` : ""].filter(Boolean).join("&");
+      await win.loadURL(previewUrl(projectId, q)).catch(() => {});
+      let ready = false;
+      for (let i = 0; i < 80 && !ready; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+        ready = Boolean(await win.webContents.executeJavaScript("Boolean(window.__studioPlayer?.ready)").catch(() => false));
+      }
+      if (!ready) return { frames: [], console: lines, duration: 0 };
+      const steps = (await win.webContents.executeJavaScript("window.__studioPlayer.steps")) as { start: number; end: number; scene: string; label: string }[];
+      const duration = Number(await win.webContents.executeJavaScript("window.__studioPlayer.duration()"));
+      const frames: WebStepFrame[] = [];
+      for (const s of spread(steps, opts.max ?? 12)) {
+        const t = Math.max(s.start + 0.01, s.end - 0.02);
+        await win.webContents.executeJavaScript(`window.__studioPlayer.seek(${t.toFixed(3)})`);
+        await win.webContents.executeJavaScript("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+        const layout = (await win.webContents.executeJavaScript("window.__studioPlayer.layout()").catch(() => [])) as WebStepFrame["layout"];
+        const png = opts.pictures === false ? Buffer.alloc(0) : (await win.webContents.capturePage()).toPNG();
+        frames.push({ t, scene: s.scene, label: s.label, png, layout });
+      }
+      return { frames, console: lines, duration };
+    } finally {
+      sink = null;
+      void win.loadURL("about:blank").catch(() => {});
+    }
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+// ---------------------------------------------------------------- Labs: checks and interaction
+
+export type LabAction =
+  | { click: string }
+  | { set: string; value: string | number | boolean }
+  | { type: string; text: string }
+  | { press: string; target?: string }
+  | { wait: number };
+
+export interface LabSession {
+  png: Buffer;
+  console: ConsoleLine[];
+  findings: string[];
+  controls: string[];
+  results: string[];
+}
+
+/** Runs inside the page: layout problems a teacher would notice, and the controls students can use. */
+const LAB_PROBE = String.raw`(() => {
+  const W = innerWidth, out = [], seen = new Set();
+  const name = (el) => {
+    const part = el.closest("[data-part]")?.getAttribute("data-part");
+    const id = el.id ? "#" + el.id : "";
+    const text = (el.getAttribute("aria-label") || el.textContent || "").trim().replace(/\s+/g, " ").slice(0, 40);
+    return (part ? "[" + part + "] " : "") + el.tagName.toLowerCase() + id + (text ? " “" + text + "”" : "");
+  };
+  const visible = (el) => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none" && +s.opacity > 0.05; };
+  const doc = document.documentElement;
+  if (doc.scrollWidth > W + 2) {
+    out.push("The page scrolls sideways: it is " + (doc.scrollWidth - W) + " px wider than the screen.");
+    const wide = [...document.body.querySelectorAll("*")].filter((el) => visible(el) && el.getBoundingClientRect().right > W + 2 && !el.closest("svg, canvas"));
+    const top = wide.filter((el) => !wide.includes(el.parentElement)).slice(0, 3);
+    for (const el of top) out.push("  Too wide: " + name(el) + " (" + Math.round(el.getBoundingClientRect().width) + " px)");
+  }
+  for (const el of document.body.querySelectorAll("*")) {
+    if (!visible(el) || el.closest("svg")) continue;
+    const s = getComputedStyle(el);
+    const direct = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+    if (direct && parseFloat(s.fontSize) < 12 && !seen.has("small")) { seen.add("small"); out.push("Small text (" + s.fontSize + "): " + name(el)); }
+    if (direct && (s.overflow.includes("hidden") || s.textOverflow === "ellipsis") && el.scrollWidth > el.clientWidth + 2 && out.length < 12) out.push("Text is cut off: " + name(el));
+    if (el.tagName === "IMG" && el.complete && !el.naturalWidth) out.push("Image did not load: " + name(el));
+  }
+  const controls = [...document.querySelectorAll("input, select, textarea, button, [role=slider], [role=button], a[href], [data-part][tabindex]")].filter(visible);
+  for (const el of controls) {
+    const r = el.getBoundingClientRect();
+    if (W < 500 && (r.height < 24 || r.width < 24) && el.type !== "range" && out.length < 14) out.push("Small tap target (" + Math.round(r.width) + "×" + Math.round(r.height) + " px): " + name(el));
+    if (r.left < -1 || r.right > W + 1) out.push("Control is partly off screen: " + name(el));
+  }
+  const desc = controls.slice(0, 30).map((el) => {
+    const label = el.labels?.[0]?.textContent?.trim();
+    const t = el.tagName.toLowerCase() + (el.type ? "[" + el.type + "]" : "");
+    const extra = el.type === "range" || el.type === "number" ? " value=" + el.value + " (" + (el.min || "?") + "–" + (el.max || "?") + ")" : el.type === "checkbox" ? " checked=" + el.checked : el.tagName === "SELECT" ? " value=" + el.value : "";
+    return name(el) + " · " + t + (label ? " label “" + label + "”" : "") + extra;
+  });
+  return { findings: [...new Set(out)], controls: desc };
+})()`;
+
+/** Find a control by data-part, CSS selector, label or visible text, then act on it. */
+const LAB_ACT = String.raw`(async (a) => {
+  const find = (q) => {
+    if (!q) return document.activeElement;
+    let el = document.querySelector('[data-part="' + CSS.escape(q) + '"]');
+    if (el) {
+      const inner = el.matches("input, select, textarea, button") ? el : el.querySelector("input, select, textarea, button");
+      return inner || el;
+    }
+    try { el = document.querySelector(q); if (el) return el; } catch {}
+    const lower = q.toLowerCase();
+    for (const l of document.querySelectorAll("label")) if (l.textContent.trim().toLowerCase().includes(lower)) return l.control || l;
+    for (const b of document.querySelectorAll("button, a, [role=button], summary")) if (b.textContent.trim().toLowerCase().includes(lower)) return b;
+    for (const i of document.querySelectorAll("[aria-label], [title], [placeholder]")) if ((i.getAttribute("aria-label") || i.title || i.placeholder || "").toLowerCase().includes(lower)) return i;
+    return null;
+  };
+  if ("wait" in a) { await new Promise((r) => setTimeout(r, Math.min(5000, a.wait))); return "waited " + a.wait + " ms"; }
+  const q = a.click ?? a.set ?? a.type ?? a.target;
+  const target = find(q);
+  if (!target) return "not found: " + q;
+  target.scrollIntoView({ block: "center" });
+  if ("click" in a) {
+    const r = target.getBoundingClientRect();
+    const o = { bubbles: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+    target.dispatchEvent(new PointerEvent("pointerdown", o)); target.dispatchEvent(new MouseEvent("mousedown", o));
+    target.dispatchEvent(new PointerEvent("pointerup", o)); target.dispatchEvent(new MouseEvent("mouseup", o));
+    target.click();
+    return "clicked " + (target.textContent || target.tagName).trim().slice(0, 40);
+  }
+  if ("set" in a) {
+    if (target.type === "checkbox" || target.type === "radio") target.checked = Boolean(a.value);
+    else {
+      const proto = target.tagName === "SELECT" ? HTMLSelectElement.prototype : target.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, "value").set.call(target, String(a.value));
+    }
+    target.dispatchEvent(new Event("input", { bubbles: true }));
+    target.dispatchEvent(new Event("change", { bubbles: true }));
+    return "set to " + (target.type === "checkbox" ? target.checked : target.value);
+  }
+  if ("type" in a) {
+    target.focus();
+    const setter = Object.getOwnPropertyDescriptor(target.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, "value").set;
+    setter.call(target, (target.value || "") + a.text);
+    target.dispatchEvent(new Event("input", { bubbles: true }));
+    return "typed “" + a.text + "”";
+  }
+  if ("press" in a) {
+    target.focus?.();
+    for (const t of ["keydown", "keypress", "keyup"]) target.dispatchEvent(new KeyboardEvent(t, { key: a.press, bubbles: true }));
+    if (a.press === "Enter" && target.form) target.form.requestSubmit?.();
+    return "pressed " + a.press;
+  }
+  return "unknown action";
+})`;
+
+/** Open the Lab fresh in the hidden window, run actions, then check the layout and take a picture. */
+export function labSession(projectId: string, opts: { viewport?: ViewportName; actions?: LabAction[] } = {}): Promise<LabSession> {
+  const run = queue.then(async () => {
+    const vp = VIEWPORTS[opts.viewport ?? "desktop"];
+    const win = inspectorWindow();
+    win.setContentSize(vp.width, vp.height);
+    const lines: ConsoleLine[] = [];
+    sink = lines;
+    try {
+      await win.loadURL(previewUrl(projectId)).catch(() => {});
+      await new Promise((r) => setTimeout(r, 1200));
+      const results: string[] = [];
+      for (const a of opts.actions ?? []) {
+        const r = await win.webContents.executeJavaScript(`${LAB_ACT}(${JSON.stringify(a)})`).catch((e: Error) => `failed: ${e.message}`);
+        results.push(String(r));
+        await new Promise((res) => setTimeout(res, 250));
+      }
+      await new Promise((r) => setTimeout(r, 300));
+      const probe = (await win.webContents.executeJavaScript(LAB_PROBE).catch(() => ({ findings: [], controls: [] }))) as { findings: string[]; controls: string[] };
+      const png = (await win.webContents.capturePage()).toPNG();
+      return { png, console: lines.filter((l, i) => lines.findIndex((o) => o.text === l.text) === i), findings: probe.findings, controls: probe.controls, results };
+    } finally {
+      sink = null;
       void win.loadURL("about:blank").catch(() => {});
     }
   });

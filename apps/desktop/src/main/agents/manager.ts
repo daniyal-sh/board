@@ -53,6 +53,12 @@ function stepLabel(name: string, input: Record<string, unknown> = {}): { label: 
       return { label: "Checking for errors" };
     case "mcp__studio__get_selection":
       return { label: "Looking at your selection" };
+    case "mcp__studio__get_keyframes":
+      return { label: "Reviewing every step", detail: input.scene ? String(input.scene) : undefined };
+    case "mcp__studio__interact":
+      return { label: "Trying it like a student", detail: Array.isArray(input.actions) && input.actions.length ? `${input.actions.length} action${input.actions.length === 1 ? "" : "s"}` : undefined };
+    case "mcp__studio__get_view":
+      return { label: "Looking at what you see" };
     case "mcp__studio__ask_teacher":
       return null; // the questions show as a card
     default:
@@ -242,7 +248,7 @@ function introInstructions(intro: AgentRequest["intro"], kind: ProjectKind): str
     parts.push(
       "[Start from a script: the teacher's message below is the narration. Split it into scenes at natural breaks. For each scene, save its words in " +
         "narration/<scene>.md, keeping the teacher's wording (fix only obvious typos), and put {{mark:name}} cues before the words where something " +
-        `should appear. Build each scene so the visuals follow the words, using ${wait} at those cues. Don't generate audio: Apollo Board voices the scripts when you finish.]`,
+        `should appear. Build each scene so the visuals follow the words, using ${wait} at those cues. Don't generate audio: Board voices the scripts when you finish.]`,
     );
   }
   return parts.join("\n");

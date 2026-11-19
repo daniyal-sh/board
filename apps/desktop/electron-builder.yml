@@ -6,7 +6,7 @@ directories:
 files:
   - out/**
   - package.json
-  # Apollo Board drives the teacher's own installed `claude`, so the SDK's bundled CLI binary isn't needed.
+  # Board drives the teacher's own installed `claude`, so the SDK's bundled CLI binary isn't needed.
   - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**"
 asarUnpack:
   - node_modules/@anthropic-ai/claude-agent-sdk/**
@@ -37,7 +37,7 @@ mac:
     - "!node_modules/onnxruntime-node/bin/napi-v3/{win32,linux}/**"
   category: public.app-category.education
   extendInfo:
-    NSMicrophoneUsageDescription: Apollo Board records your voice for narration. Recordings stay on this computer.
+    NSMicrophoneUsageDescription: Board records your voice for narration. Recordings stay on this computer.
 linux:
   target: [AppImage, deb]
   files:

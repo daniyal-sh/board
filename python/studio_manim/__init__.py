@@ -64,6 +64,25 @@ def _anim_label(anim: Any, names: dict[int, tuple[str, Mobject]]) -> str:
     return type(anim).__name__
 
 
+def _visible_opacity(mob: Mobject) -> float:
+    """Highest fill or stroke opacity in the family (0 when faded out but still on stage)."""
+    best = 0.0
+    for m in mob.get_family():
+        for getter in ("get_fill_opacity", "get_stroke_opacity", "get_opacity"):
+            fn = getattr(m, getter, None)
+            if fn is None:
+                continue
+            try:
+                best = max(best, float(fn()))
+            except Exception:  # noqa: BLE001 - not every mobject reports opacity the same way
+                continue
+        if best >= 0.99:
+            break
+    if not mob.get_family() or best == 0.0 and not any(hasattr(m, "get_fill_opacity") for m in mob.get_family()):
+        return 1.0
+    return round(best, 3)
+
+
 class StudioScene(Scene):
     def setup(self) -> None:
         super().setup()
@@ -149,6 +168,7 @@ class StudioScene(Scene):
             part["boxes"].append(
                 {
                     "t": round(t, 3),
+                    "o": _visible_opacity(mob),
                     "x0": round((x0 + fw / 2) / fw, 4),
                     "y0": round((fh / 2 - y1) / fh, 4),
                     "x1": round((x1 + fw / 2) / fw, 4),

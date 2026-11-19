@@ -269,6 +269,16 @@ async function uiCase(out: string, report: Record<string, unknown>) {
     if (step.css) report[`css:${step.css}`] = await js(`(() => { const el = document.querySelector(${JSON.stringify(step.css)}); if (el) { el.click(); return true } return false })()`);
     if (step.js) await js(String(step.js));
     if (step.wait) await wait(Number(step.wait));
+    if (step.view) {
+      // What the assistant's get_view tool would return for the open project.
+      const { setMainWindow } = await import("./window");
+      const { teacherView } = await import("./agents/tools");
+      setMainWindow(win);
+      const id = projects.list().find((p) => p.title.includes(target))?.id ?? "";
+      const v = await teacherView(id, undefined);
+      if (v.png) fs.writeFileSync(join(out, `ui-${step.view}.png`), v.png);
+      report[`view:${step.view}`] = v.text;
+    }
     if (step.shot) await shot(String(step.shot));
   }
   if (process.env.STUDIO_SELFTEST_UI_CLICK) {
@@ -315,6 +325,7 @@ export async function runSelftest(out: string): Promise<void> {
       }
     }
     if (mode === "formats") await formatsCase(out, report);
+    if (mode === "inspect") await inspectCase(out, report);
     if (mode === "guided") {
       // A guided first message: the assistant should ask through the question card, then build.
       const { answerQuestions } = await import("./agents/approvals");
@@ -531,4 +542,96 @@ class Tall(StudioScene):
     gifBytes: fs.existsSync(join(out, "video-vertical.gif")) ? fs.statSync(join(out, "video-vertical.gif")).size : 0,
     error: vidErr,
   };
+}
+
+/**
+ * The assistant's inspection tools without an assistant: layout checks, keyframe sheets, Lab
+ * interaction and the teacher's-view capture, on samples with deliberate problems.
+ */
+async function inspectCase(out: string, report: Record<string, unknown>) {
+  const { webSteps, labSession } = await import("./build/preview");
+  const { analyseLayout, snapshotsFromTimeline } = await import("./inspect/layout");
+  const { contactSheet } = await import("./inspect/sheet");
+  const { video } = await import("./video/renderer");
+  const { videoEnvStatus } = await import("./video/env");
+
+  // Web animation: a label that sits on top of another, and one pushed off the right edge.
+  const w = await projects.create({ kind: "web", prompt: "inspect", length: "short", title: `Inspect web ${Date.now()}` });
+  writeFiles(w.dir, {
+    "scenes/01_clash.ts": `import { Scene, Circle, Text, Create, FadeIn, BLUE } from "manim-web";
+export const title = "Clash";
+export default async function (scene: Scene) {
+  const c = new Circle({ radius: 1.5, color: BLUE });
+  await scene.play(new Create(c));
+  const a = new Text({ text: "Radius", fontSize: 48 });
+  const b = new Text({ text: "Radius again", fontSize: 48 }).shift([0.4, 0.1, 0]);
+  await scene.play(new FadeIn(a), new FadeIn(b));
+  const edge = new Text({ text: "Off the edge", fontSize: 48 }).shift([7, 0, 0]);
+  await scene.play(new FadeIn(edge));
+}
+`,
+  });
+  await buildPreview(w.manifest.id);
+  const ws = await webSteps(w.manifest.id);
+  report.webSteps = ws.frames.map((f) => ({ t: f.t, label: f.label, items: f.layout.map((i) => i.name) }));
+  report.webFindings = analyseLayout(ws.frames.map((f) => ({ t: f.t, items: f.layout })), { frameHeightPx: 1080 });
+  if (ws.frames.length) fs.writeFileSync(join(out, "web-sheet.png"), await contactSheet(ws.frames.map((f) => ({ png: f.png, label: `${f.t.toFixed(1)} s · ${f.label}` }))));
+  report.webConsole = ws.console;
+
+  // Lab: a slider that updates a readout, a button, and an over-wide element on phones.
+  const l = await projects.create({ kind: "lab", prompt: "inspect", length: "short", title: `Inspect lab ${Date.now()}` });
+  writeFiles(l.dir, {
+    "lab/index.html": `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
+<main class="lab"><h1 data-part="title">Angle lab</h1>
+<label for="angle">Angle</label><input id="angle" data-part="angle" type="range" min="0" max="90" value="30">
+<p data-part="readout">Angle: <b id="out">30</b>°</p>
+<button data-part="reset" id="reset">Reset</button>
+<div style="width:700px;height:20px;background:#ddd" data-part="wide"></div>
+</main><script type="module" src="./main.ts"></script></body></html>`,
+    "lab/main.ts": `import "@studio/lab-kit";
+const a = document.getElementById("angle") as HTMLInputElement;
+const o = document.getElementById("out")!;
+a.addEventListener("input", () => (o.textContent = a.value));
+document.getElementById("reset")!.addEventListener("click", () => { a.value = "0"; o.textContent = "0"; });
+`,
+    "lab/style.css": "",
+  });
+  await buildPreview(l.manifest.id);
+  const s1 = await labSession(l.manifest.id, { viewport: "phone", actions: [{ set: "angle", value: 75 }] });
+  const readout1 = s1.controls;
+  const s2 = await labSession(l.manifest.id, { viewport: "desktop", actions: [{ set: "Angle", value: 60 }, { click: "Reset" }, { click: "nonexistent" }] });
+  fs.writeFileSync(join(out, "lab-phone.png"), s1.png);
+  fs.writeFileSync(join(out, "lab-desktop.png"), s2.png);
+  report.lab = { phoneResults: s1.results, phoneFindings: s1.findings, controls: readout1, desktopResults: s2.results, desktopFindings: s2.findings, console: s2.console };
+
+  // Video: two labels on top of each other and one past the bottom edge.
+  if (videoEnvStatus().ready) {
+    const v = await projects.create({ kind: "video", prompt: "inspect", length: "short", title: `Inspect video ${Date.now()}` });
+    writeFiles(v.dir, {
+      "scenes/01_clash.py": `from manim import *
+from studio_manim import StudioScene
+
+
+class Clash(StudioScene):
+    def construct(self):
+        title = Text("Overlap test", font_size=48)
+        label = Text("Overlap", font_size=48).shift(RIGHT * 0.3)
+        self.play(Write(title))
+        self.play(FadeIn(label))
+        low = Text("Too low", font_size=40).shift(DOWN * 3.9)
+        tiny = Text("tiny note", font_size=10).to_corner(UL)
+        self.play(FadeIn(low), FadeIn(tiny))
+        self.play(FadeOut(label))
+        self.wait(0.5)
+`,
+    });
+    const r = await video.renderPreview(v.manifest.id, "01_clash");
+    const tl = video.timeline(v.manifest.id, "01_clash");
+    report.videoFindings = r.ok && tl ? analyseLayout(snapshotsFromTimeline(tl), { frameHeightPx: 1080 }) : { error: r.log };
+    if (tl) {
+      const steps = tl.plays.filter((p) => p.kind !== "wait").map((p) => ({ t: Math.max(p.start + 0.01, p.end - 0.04), label: p.label, line: p.line }));
+      const frames = await video.frames(v.manifest.id, "01_clash", steps.map((s) => s.t));
+      fs.writeFileSync(join(out, "video-sheet.png"), await contactSheet(frames.map((f, i) => ({ png: f.png, label: `${steps[i].t.toFixed(1)} s · ${steps[i].label} · line ${steps[i].line}` }))));
+    }
+  }
 }

@@ -5,6 +5,7 @@ import { Home, ProjectsPage } from "./components/Home";
 import { Studio } from "./components/Studio";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { Lockup } from "./components/Brand";
+import { ProviderLogo } from "./components/ProviderLogo";
 import { GearIcon, Grid, HomeIcon, Moon, Sun } from "./components/Icons";
 
 type Route =
@@ -123,17 +124,20 @@ export function App() {
           {(providers ?? []).map((p) => {
             const ok = p.installed && p.authenticated !== false;
             return (
-              <span key={p.id} className="flex items-center gap-2">
-                <i className="h-[7px] w-[7px] flex-none rounded-full" style={{ background: ok ? "var(--color-good)" : "var(--color-faint)" }} />
+              <span key={p.id} className={`flex items-center gap-2 ${ok ? "text-ink" : "text-muted"}`}>
+                <ProviderLogo provider={p.id} size={14} />
                 {p.label}
-                <span className="ml-auto text-[12px] text-muted">{!p.installed ? "Not installed" : p.authenticated === false ? "Sign in" : "Ready"}</span>
+                {!ok && <span className="ml-auto text-[12px] text-warn">{!p.installed ? "Not installed" : "Not signed in"}</span>}
               </span>
             );
           })}
           {providers === null && <span className="text-muted">Checking…</span>}
         </button>
         <div className="border-t border-line px-5 py-2.5 text-[11.5px] text-muted">
-          {BRAND.byline[0].toUpperCase() + BRAND.byline.slice(1)} · open source
+          By the Apollo team ·{" "}
+          <button className="font-medium text-accent-ink hover:underline" onClick={() => void studio.app.openExternal(BRAND.website)}>
+            {BRAND.website.replace(/^https?:\/\//, "")}
+          </button>
         </div>
       </aside>
 

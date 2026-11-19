@@ -42,7 +42,7 @@ const dropMathJaxPlugin: esbuild.Plugin = {
   setup(build) {
     build.onResolve({ filter: /MathJaxBundle-[\w-]+\.js$/ }, (args) => ({ path: args.path, namespace: "studio-stub" }));
     build.onLoad({ filter: /.*/, namespace: "studio-stub" }, () => ({
-      contents: 'throw new Error("MathJax is not included in Apollo Board builds; KaTeX renders math instead.");',
+      contents: 'throw new Error("MathJax is not included in Board builds; KaTeX renders math instead.");',
       loader: "js",
     }));
   },
@@ -115,6 +115,8 @@ async function bundle(entry: string, cwd: string): Promise<{ js: string; css: st
       platform: "browser",
       target: "es2022",
       minify: true,
+      // Keep class names (Text, Circle…) so layout checks and error messages can name things.
+      keepNames: true,
       legalComments: "none",
       metafile: true,
       logLevel: "silent",

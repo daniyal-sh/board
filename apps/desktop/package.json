@@ -2,7 +2,7 @@
   "name": "@studio/desktop",
   "version": "0.1.0",
   "private": true,
-  "description": "Apollo Board: make Manim videos, web animations and interactive Labs with your own Claude Code or Codex",
+  "description": "Board by Apollo: make Manim videos, web animations and interactive Labs with your own Claude Code or Codex",
   "license": "MIT",
   "type": "module",
   "main": "./out/main/index.js",

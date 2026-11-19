@@ -1,8 +1,14 @@
 /** Product naming lives here so the app can be renamed in one place. */
 export const BRAND = {
-  name: "Apollo Board",
-  /** Shown under the name: an open-source app made by the Apollo team. */
-  byline: "by the Apollo team",
+  /** What teachers see: "Board", made by Apollo. */
+  name: "Board",
+  byline: "by Apollo",
+  website: "https://apollolearn.app",
+  /**
+   * Name on the computer: data and projects folders, installer and app id. Kept as
+   * "Apollo Board" so the folders aren't a generic "Board" and existing setups keep working.
+   */
+  systemName: "Apollo Board",
   /** Folder under the user's Documents directory that holds projects. */
   projectsFolder: "Apollo Board",
   /** Reverse-DNS app id used by Electron and installers. */

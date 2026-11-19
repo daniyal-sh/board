@@ -1,8 +1,8 @@
 <p align="center"><img src="apps/desktop/build/brand/icon-256.png" width="96" alt=""></p>
 
-# Apollo Board
+# Board, by Apollo
 
-**An open-source desktop app for teachers to make maths and science visible**, using the AI subscription they already have. Built by the Apollo team.
+**An open-source desktop app for teachers to make maths and science visible**, using the AI subscription they already have. Built by the Apollo team · [apollolearn.app](https://apollolearn.app)
 
 Describe an idea, and Claude Code or Codex builds it for you as one of three things:
 
@@ -17,7 +17,7 @@ Then keep shaping it: click anything in the preview and say what should change, 
 ## Highlights
 
 - **Local only.** No account and nothing uploaded. Projects are plain folders in your Documents. The only thing that goes online is your assistant (Claude Code or Codex) talking to its own service.
-- **Uses your own Claude Code or Codex sign-in.** No API keys, no extra subscription. Apollo Board drives the CLI you already have installed.
+- **Uses your own Claude Code or Codex sign-in.** No API keys, no extra subscription. Board drives the CLI you already have installed.
 - **A guided start.** The assistant asks a few quick multiple-choice questions (class level, takeaway, style) before it builds.
 - **Start from a script.** Paste your narration; it becomes scenes whose visuals follow your words, then it's voiced for you.
 - **Click to edit.** Select a part of a Lab, a web animation, or an object in a rendered Manim video, and the assistant gets its name, scene, time and source line.

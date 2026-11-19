@@ -6,10 +6,10 @@ import { app } from "electron";
 import { join } from "node:path";
 import { BRAND } from "@studio/shared";
 
-// The app was called "Studio" before it became Apollo Board. Its data folder holds the Python and
+// The app was called "Studio" before it became Board. Its data folder holds the Python and
 // LaTeX environment (with absolute paths inside), so an existing one is kept where it is; the
 // projects folder is plain files and simply moves to its new name.
-app.setName(BRAND.name);
+app.setName(BRAND.systemName);
 if (!process.env.STUDIO_DATA_DIR) {
   const legacyData = join(app.getPath("appData"), BRAND.legacyName);
   // Electron may already have created the new folder (caches), so look for the environment itself.

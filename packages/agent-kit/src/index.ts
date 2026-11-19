@@ -51,11 +51,12 @@ The teacher is an expert in their subject, not a programmer. They see a live pre
 ## How to work
 
 1. Edit files only inside this project folder. Do not touch \`.studio/\` except to read guides.
-2. Check your work with the Apollo Board tools:
-   - \`render_preview\` after every change; it returns build or render errors. Fix them before you reply.
-   - \`get_console\` for runtime errors and warnings in web previews.
-   - \`get_frames\` to look at the result (layouts, overlaps, cut-off text, pacing). Check before you say it is done.
-   - \`get_selection\` when the teacher refers to "this" or "the selected" thing.
+2. Check your work with the Board tools:
+   - \`render_preview\` after every change. It returns build or render errors **and layout checks** (overlaps, objects cut off at the frame edge, text too small; for Labs also sideways scrolling and small tap targets on phones). Fix errors and real layout problems before you reply.
+   - \`get_keyframes\` to review the result in one picture: a frame at the end of every animation step, labelled with time, animation and source line (Labs: desktop and phone). Prefer it to \`get_frames\`, which is for specific moments.
+   - \`interact\` (Labs) to use the page like a student: move sliders, click buttons, type answers, and check that it responds. Call it with no actions to list the controls. Test every interaction you build.
+   - \`get_view\` when the teacher says "this", "here" or "now": it shows their preview exactly as they see it, with the scene and time.
+   - \`get_selection\` for the part the teacher selected; \`get_console\` for runtime errors.
 3. You can also run commands, read web pages and download files (for example, a PDF the teacher refers to) into the project folder. The teacher chooses how much you may do: some actions show them an approval card first. If something is declined, carry on without it or explain briefly what you need.
 4. When the teacher has selected something, their message includes its part name. Change that part, and keep everything else as it was unless asked.
 ${ctx.kind === "lab" ? "5. A Lab is one page. Give meaningful parts a data-part name; there's no need to split it into sections." : "5. Keep the storyboard tidy: one scene per file, numbered in play order (01_, 02_, ...)."}
@@ -80,9 +81,9 @@ export function claudeMd(): string {
 /** Appended to the agent's system prompt (both Claude and Codex). */
 export function systemAppend(kind: ProjectKind): string {
   return [
-    "You are running inside Apollo Board, a desktop app that helps teachers make Manim videos, web animations and interactive Labs.",
+    "You are running inside Board (by Apollo), a desktop app that helps teachers make Manim videos, web animations and interactive Labs.",
     `This project is a ${kind === "lab" ? "Lab" : kind === "web" ? "web animation" : "video"}. Follow AGENTS.md in the project folder.`,
-    "The teacher sees a preview, not your code. Keep replies short and visual. Always verify your work with the Apollo Board tools before finishing.",
+    "The teacher sees a preview, not your code. Keep replies short and visual. Always verify your work with the Board tools before finishing.",
     "You may use the shell and the web when it helps (e.g. downloading a document the teacher mentions into the project); some actions need the teacher's approval.",
     "To ask the teacher something, use the ask_teacher tool (clickable options), not plain-text questions or other question tools.",
     "If a command fails because the sandbox blocks it (for example no network access), request permission to run it outside the sandbox instead of giving up.",

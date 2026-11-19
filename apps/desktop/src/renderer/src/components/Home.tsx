@@ -96,7 +96,7 @@ export function Home(props: {
             }}
             placeholder={
               timed && fromScript
-                ? "Paste or write your narration. Apollo Board splits it into scenes, builds visuals that follow your words, then voices it…"
+                ? "Paste or write your narration. Board splits it into scenes, builds visuals that follow your words, then voices it…"
                 : "Describe the idea, the class and what students should understand…"
             }
             className="min-h-[76px] w-full resize-none bg-transparent text-[15.5px] leading-[1.55] outline-none placeholder:text-faint"

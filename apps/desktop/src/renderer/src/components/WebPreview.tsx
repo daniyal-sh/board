@@ -122,6 +122,9 @@ export function WebPreview(props: {
       <div className="flex min-h-0 justify-center">
         <div
           className="relative h-full overflow-hidden rounded-[14px] shadow-2 transition-[width] duration-300"
+          data-agent-view
+          data-project={props.projectId}
+          data-view={device === "phone" ? "phone layout" : "desktop layout"}
           style={{
             width: device === "phone" ? 390 : "100%",
             height: "100%",

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { DEFAULT_ACCESS, type AccessLevel, type AgentProviderId, AgentSettings, ModelOption, ProviderModels, ProviderStatus } from "@studio/shared";
 import { studio } from "../lib/api";
 import { Check, Refresh } from "./Icons";
+import { ProviderLogo } from "./ProviderLogo";
 
 /**
  * Assistant controls in the style of Codex / Claude Code: a model menu, a reasoning menu and a
@@ -120,9 +121,7 @@ export function AgentControls(props: {
       {/* Model (and harness) */}
       <div ref={modelMenu.ref} className="relative">
         <button className={chipClass} data-open={modelMenu.open} onClick={() => modelMenu.setOpen((o) => !o)} title="Model">
-          <span className="grid h-4 w-4 flex-none place-items-center rounded-[5px] text-[9px] font-bold text-white" style={{ background: provider.color }}>
-            {provider.glyph}
-          </span>
+          <ProviderLogo provider={provider.id} size={15} className="text-ink" />
           <span className="max-w-[130px] truncate font-medium text-ink">{modelName}</span>
           <Caret />
         </button>
@@ -148,7 +147,10 @@ export function AgentControls(props: {
                       className="rounded-md py-1 text-[12px] font-medium disabled:opacity-40"
                       style={v.provider === p.id ? { background: "var(--color-surface)", boxShadow: "var(--shadow-1), 0 0 0 1px var(--color-line)", color: "var(--color-ink)" } : { color: "var(--color-ink-2)" }}
                     >
-                      {p.label}
+                      <span className="inline-flex items-center gap-1.5">
+                        <ProviderLogo provider={p.id} size={13} />
+                        {p.label}
+                      </span>
                     </button>
                   );
                 })}

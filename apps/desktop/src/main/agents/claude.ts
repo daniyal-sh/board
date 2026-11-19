@@ -168,7 +168,7 @@ async function runOnce(opts: TurnOptions, emit: (e: DriverEvent) => void, resume
       stderr: (d) => stderr.push(d),
       systemPrompt: { type: "preset", preset: "claude_code", append: systemAppend(opts.kind) },
       mcpServers: { studio: { type: "http", url: opts.mcpUrl } },
-      allowedTools: ["Read", "Glob", "Grep", "TodoWrite", "mcp__studio__render_preview", "mcp__studio__get_console", "mcp__studio__get_frames", "mcp__studio__get_selection", "mcp__studio__ask_teacher"],
+      allowedTools: ["Read", "Glob", "Grep", "TodoWrite", "mcp__studio__render_preview", "mcp__studio__get_console", "mcp__studio__get_frames", "mcp__studio__get_selection", "mcp__studio__ask_teacher", "mcp__studio__get_keyframes", "mcp__studio__interact", "mcp__studio__get_view"],
       // Questions go through Studio's ask_teacher card instead.
       disallowedTools: ["AskUserQuestion"],
       ...(access === "full"

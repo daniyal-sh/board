@@ -17,7 +17,7 @@ export interface SceneTimeline {
   duration: number;
   marks: Record<string, number>;
   plays: { kind: "play" | "wait" | "mark"; label: string; start: number; end: number; line: number | null }[];
-  parts: { name: string; type: string; line: number | null; boxes: { t: number; x0: number; y0: number; x1: number; y1: number }[] }[];
+  parts: { name: string; type: string; line: number | null; boxes: { t: number; x0: number; y0: number; x1: number; y1: number; o?: number }[] }[];
 }
 
 type Quality = "draft" | "final";

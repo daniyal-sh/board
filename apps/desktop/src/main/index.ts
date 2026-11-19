@@ -13,6 +13,7 @@ import { buildExport, buildPreview, handlePreviewProtocol, webGif, webSceneThumb
 import { listHistory, restoreTo, undoLast } from "./history";
 import { ensureLabKit, paths } from "./paths";
 import { projects } from "./projects";
+import { setMainWindow } from "./window";
 import { exportFinalVideo, exportVideoGif } from "./video/export";
 import { setupVideoEnv, videoEnvStatus, manimEnv, runtime } from "./video/env";
 import { video } from "./video/renderer";
@@ -20,6 +21,8 @@ import * as voice from "./voice";
 import { autoNarrate, retimeScene } from "./narrate";
 
 registerPreviewScheme();
+// Windows groups taskbar windows (and picks their icon) by this id.
+if (process.platform === "win32") app.setAppUserModelId(BRAND.appId);
 
 let win: BrowserWindow | null = null;
 
@@ -31,7 +34,7 @@ function createWindow(): void {
     minHeight: 680,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#151517" : "#F3F3F5",
     // Packaged builds take the icon from the executable; this covers development and Linux.
-    icon: join(app.getAppPath(), "build", "icon.png"),
+    icon: join(app.getAppPath(), "build", process.platform === "win32" ? "icon.ico" : "icon.png"),
     title: BRAND.name,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     autoHideMenuBar: true,
@@ -44,6 +47,8 @@ function createWindow(): void {
     },
   });
   win.once("ready-to-show", () => win?.show());
+  setMainWindow(win);
+  win.on("closed", () => setMainWindow(null));
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/.test(url)) void shell.openExternal(url);
     return { action: "deny" };
