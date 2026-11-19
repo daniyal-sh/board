@@ -83,7 +83,6 @@ export function WebPreview(props: {
   useEffect(() => postPick(picking), [picking]);
 
   const errorCount = consoleLines.filter((l) => l.level === "error").length;
-  const isLab = true;
 
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] gap-3 px-[18px] py-4">
@@ -107,16 +106,14 @@ export function WebPreview(props: {
         )}
         <span className="flex-1" />
         {building && <span className="spinner" />}
-        {isLab && (
-          <div className="seg">
-            <button data-on={device === "desktop"} onClick={() => setDevice("desktop")} title="Desktop">
-              <Desktop size={14} />
-            </button>
-            <button data-on={device === "phone"} onClick={() => setDevice("phone")} title="Phone">
-              <Phone size={14} />
-            </button>
-          </div>
-        )}
+        <div className="seg">
+          <button data-on={device === "desktop"} onClick={() => setDevice("desktop")} title="Desktop">
+            <Desktop size={14} />
+          </button>
+          <button data-on={device === "phone"} onClick={() => setDevice("phone")} title="Phone">
+            <Phone size={14} />
+          </button>
+        </div>
         <button className="icon-btn" title="Rebuild preview" onClick={() => void build()}>
           <Refresh size={15} />
         </button>
@@ -126,12 +123,9 @@ export function WebPreview(props: {
         <div
           className="relative h-full overflow-hidden rounded-[14px] shadow-2 transition-[width] duration-300"
           style={{
-            width: isLab ? (device === "phone" ? 390 : "100%") : "100%",
-            maxWidth: isLab ? undefined : "calc((100vh - 220px) * 16 / 9)",
-            aspectRatio: isLab ? undefined : "16 / 9",
-            height: isLab ? "100%" : "auto",
-            alignSelf: isLab ? undefined : "center",
-            background: isLab ? "#fff" : "var(--color-stage)",
+            width: device === "phone" ? 390 : "100%",
+            height: "100%",
+            background: "#fff",
           }}
         >
           {url ? (
@@ -148,7 +142,7 @@ export function WebPreview(props: {
               {props.busy || building ? (
                 <div className="flex flex-col items-center gap-3">
                   <div className="spinner" />
-                  <span>The assistant is building your {isLab ? "Lab" : "animation"}…</span>
+                  <span>The assistant is building your Lab…</span>
                 </div>
               ) : errors.length ? null : (
                 "Nothing to preview yet."
@@ -178,7 +172,7 @@ export function WebPreview(props: {
             </span>
           ))
         ) : (
-          <span>{isLab ? "plain HTML + lab kit" : "manim-web"}</span>
+          <span>plain HTML + lab kit</span>
         )}
         {consoleLines.length > 0 && (
           <button className="ml-2 rounded-full bg-bad-soft px-2.5 py-0.5 font-medium text-bad" onClick={() => setShowConsole((v) => !v)}>

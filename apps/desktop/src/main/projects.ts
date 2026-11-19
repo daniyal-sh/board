@@ -82,7 +82,9 @@ class ProjectStore {
       this.dirs.set(m.id, dir);
       const thumb = join(dir, "build", "thumb.png");
       const thumbUrl = fs.existsSync(thumb) ? `studio-preview://${m.id}/thumb.png?v=${Math.round(fs.statSync(thumb).mtimeMs)}` : undefined;
-      out.push({ id: m.id, kind: m.kind, title: m.title, updatedAt: m.updatedAt, dir, publish: m.publish, thumbUrl });
+      const sceneDir = join(dir, "scenes");
+      const sceneCount = m.kind === "lab" || !fs.existsSync(sceneDir) ? undefined : fs.readdirSync(sceneDir).filter((f) => /^[^_.].*\.(py|ts)$/.test(f) && f !== "index.ts").length;
+      out.push({ id: m.id, kind: m.kind, title: m.title, updatedAt: m.updatedAt, dir, thumbUrl, aspect: m.aspect, sceneCount });
     }
     return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
@@ -120,6 +122,7 @@ class ProjectStore {
       title,
       titleAuto: !input.title?.trim(),
       length: input.length,
+      ...(input.kind !== "lab" && input.aspect === "vertical" ? { aspect: "vertical" as const } : {}),
       createdAt: now,
       updatedAt: now,
       scenes: [],
@@ -141,7 +144,7 @@ class ProjectStore {
     const libsDir = join(paths.labKitDir, "node_modules");
     fs.writeFileSync(
       join(dir, "AGENTS.md"),
-      projectInstructions({ kind: m.kind, title: m.title, length: m.length, audience: m.audience, libsDir }),
+      projectInstructions({ kind: m.kind, title: m.title, length: m.length, audience: m.audience, aspect: m.aspect, libsDir }),
     );
     fs.writeFileSync(join(dir, "CLAUDE.md"), claudeMd());
     const guideDir = join(dir, ".studio", "guide");

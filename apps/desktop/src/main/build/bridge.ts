@@ -1,5 +1,5 @@
 /**
- * Injected into preview builds only (never into exported or published files).
+ * Injected into preview builds only (never into exported files).
  * - Forwards console output and errors to the app.
  * - "Select" mode: hovering outlines the nearest [data-part]; clicking reports it instead of interacting.
  */

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { SceneMeta, Selection } from "@studio/shared";
+import type { Aspect, SceneMeta, Selection } from "@studio/shared";
 import { errorMessage, formatBytes, studio } from "../lib/api";
 import { Cursor, Download, Refresh } from "./Icons";
 import { Filmstrip, fmt, segmentAt, StartOverlay, Transport, usePlayerKeys, type Segment } from "./PlayerChrome";
@@ -22,6 +22,7 @@ export function WebStage(props: {
   scenes: SceneMeta[];
   selection: Selection | null;
   onSelect: (part: string | null, info?: { tag?: string; text?: string }) => void;
+  aspect?: Aspect;
   /** The scene under the playhead changed (whole-animation mode). */
   onActiveScene?: (sceneId: string) => void;
   /** New scene pictures were saved. */
@@ -184,7 +185,10 @@ export function WebStage(props: {
       </div>
 
       <div className="flex min-h-0 items-center justify-center">
-        <div className="relative aspect-video max-h-full w-full overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)]">
+        <div
+          className={`relative overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] ${props.aspect === "vertical" ? "h-full max-w-full" : "aspect-video max-h-full w-full"}`}
+          style={props.aspect === "vertical" ? { aspectRatio: "9 / 16" } : undefined}
+        >
           {url ? (
             <iframe ref={frame} key={url} src={url} title="Preview" sandbox="allow-scripts allow-pointer-lock" className="h-full w-full border-0" />
           ) : (
@@ -253,7 +257,7 @@ export function WebStage(props: {
                 animSteps.map((s, i) => (
                   <span
                     key={i}
-                    className="absolute inset-y-[3px] rounded-[4px] bg-[#E3F4F9] shadow-[inset_0_0_0_1px_#C7E7F0]"
+                    className="absolute inset-y-[3px] rounded-[4px] border border-context/30 bg-context-soft"
                     style={{ left: `${(s.start / duration) * 100}%`, width: `max(2px, calc(${((s.end - s.start) / duration) * 100}% - 1px))` }}
                   />
                 ))}

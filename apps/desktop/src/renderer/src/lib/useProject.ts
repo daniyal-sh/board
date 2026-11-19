@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AgentEvent, ChatTurn, OpenProject, Selection } from "@studio/shared";
+import type { AgentEvent, AgentRequest, ChatTurn, OpenProject, Selection } from "@studio/shared";
 import { errorMessage, studio } from "./api";
 
 /** Loads a project and keeps its chat in sync with streamed agent events. */
@@ -63,6 +63,16 @@ export function useProject(id: string) {
               ts.map((t) => (t.turnId === e.turnId ? { ...t, approvals: (t.approvals ?? []).map((a) => (a.requestId === e.requestId ? { ...a, decision: e.decision } : a)) } : t)),
             );
             break;
+          case "question":
+            setTurns((ts) => ts.map((t) => (t.turnId === e.turnId ? { ...t, questions: [...(t.questions ?? []), e.request] } : t)));
+            break;
+          case "question.resolved":
+            setTurns((ts) =>
+              ts.map((t) =>
+                t.turnId === e.turnId ? { ...t, questions: (t.questions ?? []).map((q) => (q.requestId === e.requestId ? { ...q, resolved: true, answers: e.answers } : q)) } : t,
+              ),
+            );
+            break;
           case "notice":
             setTurns((ts) => ts.map((t) => (t.turnId === e.turnId ? { ...t, notices: [...(t.notices ?? []).filter((n) => n !== e.text), e.text] } : t)));
             break;
@@ -89,10 +99,10 @@ export function useProject(id: string) {
   );
 
   const send = useCallback(
-    async (text: string, opts: { selection?: Selection; sceneId?: string } = {}) => {
+    async (text: string, opts: { selection?: Selection; sceneId?: string; intro?: AgentRequest["intro"] } = {}) => {
       setError(null);
       try {
-        await studio.agents.send({ projectId: id, text, selection: opts.selection, sceneId: opts.sceneId });
+        await studio.agents.send({ projectId: id, text, selection: opts.selection, sceneId: opts.sceneId, intro: opts.intro });
       } catch (e) {
         setError(errorMessage(e));
       }

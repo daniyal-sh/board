@@ -1,7 +1,7 @@
 import type { ChildProcess } from "node:child_process";
 import os from "node:os";
 import { createInterface } from "node:readline";
-import type { ModelOption } from "@studio/shared";
+import { DEFAULT_ACCESS, type ModelOption } from "@studio/shared";
 import { systemAppend } from "@studio/agent-kit";
 import { executableFor } from "./detect";
 import type { AgentDriver, DriverEvent, TurnOptions } from "./driver";
@@ -64,7 +64,7 @@ class AppServer {
     };
     this.child.on("exit", (code, signal) => onGone(signal ? `signal ${signal}` : code !== null ? `exit code ${code}` : ""));
     this.child.on("error", (e) => onGone(/ENOENT/.test(String(e)) ? "Codex isn't installed" : String(e)));
-    this.ready = this.request("initialize", { clientInfo: { name: "studio", title: "Studio", version: "0.1.0" }, capabilities: null }, INITIALIZE_TIMEOUT_MS)
+    this.ready = this.request("initialize", { clientInfo: { name: "apollo_board", title: "Apollo Board", version: "0.1.0" }, capabilities: null }, INITIALIZE_TIMEOUT_MS)
       .then(() => this.notify("initialized", {}))
       .catch((e: Error) => {
         this.kill();
@@ -176,7 +176,7 @@ class AppServer {
         reply({ answers: {} });
         return;
       default:
-        this.send({ jsonrpc: "2.0", id, error: { code: -32601, message: `Studio doesn't support ${method}` } });
+        this.send({ jsonrpc: "2.0", id, error: { code: -32601, message: `Apollo Board doesn't support ${method}` } });
     }
   }
 
@@ -256,7 +256,7 @@ export const codexDriver: AgentDriver = {
     //         sandbox (its Windows sandbox has no network at all); commands and web access are
     //         approved automatically, writes outside the project still show a card.
     //   full: no sandbox, never asks
-    const access = opts.settings.access ?? "ask";
+    const access = opts.settings.access ?? DEFAULT_ACCESS;
     const approvalPolicy = access === "full" ? "never" : "on-request";
     const sandbox = access === "full" ? "danger-full-access" : "workspace-write";
     const sandboxPolicy =

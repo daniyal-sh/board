@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import type * as esbuild from "esbuild";
-import type { ProjectKind } from "@studio/shared";
+import type { Aspect, ProjectKind } from "@studio/shared";
 import { paths } from "../paths";
 import { PREVIEW_BRIDGE } from "./bridge";
 import { webRunnerSource, webShellHtml, type SceneNarration } from "./web-runner";
@@ -42,7 +42,7 @@ const dropMathJaxPlugin: esbuild.Plugin = {
   setup(build) {
     build.onResolve({ filter: /MathJaxBundle-[\w-]+\.js$/ }, (args) => ({ path: args.path, namespace: "studio-stub" }));
     build.onLoad({ filter: /.*/, namespace: "studio-stub" }, () => ({
-      contents: 'throw new Error("MathJax is not included in Studio builds; KaTeX renders math instead.");',
+      contents: 'throw new Error("MathJax is not included in Apollo Board builds; KaTeX renders math instead.");',
       loader: "js",
     }));
   },
@@ -176,7 +176,7 @@ function assemble(shell: string, js: string, css: string, preview: boolean): str
  * Build a Lab or web animation into one HTML file.
  * `preview` adds the bridge used by the app (console capture, click-to-select).
  */
-export async function buildSingleFile(dir: string, kind: ProjectKind, title: string, preview: boolean): Promise<BundleResult> {
+export async function buildSingleFile(dir: string, kind: ProjectKind, title: string, preview: boolean, aspect: Aspect = "landscape"): Promise<BundleResult> {
   let entry: string;
   let shell: string;
   if (kind === "lab") {
@@ -202,8 +202,8 @@ export async function buildSingleFile(dir: string, kind: ProjectKind, title: str
       const n = JSON.parse(fs.readFileSync(json, "utf8")) as { marks: Record<string, number>; captions: SceneNarration["captions"]; duration: number };
       narration[id] = { audio: `data:audio/wav;base64,${fs.readFileSync(wav).toString("base64")}`, duration: n.duration, marks: n.marks, captions: n.captions };
     }
-    fs.writeFileSync(entry, webRunnerSource(files.map((file) => ({ file })), narration));
-    shell = webShellHtml(title);
+    fs.writeFileSync(entry, webRunnerSource(files.map((file) => ({ file })), narration, aspect));
+    shell = webShellHtml(title, aspect);
   } else {
     return { ok: false, libraries: [], errors: ["Videos are rendered with Manim, not bundled"], warnings: [] };
   }

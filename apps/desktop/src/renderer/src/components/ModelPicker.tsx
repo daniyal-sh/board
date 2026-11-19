@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AccessLevel, AgentProviderId, AgentSettings, ModelOption, ProviderModels, ProviderStatus } from "@studio/shared";
+import { DEFAULT_ACCESS, type AccessLevel, type AgentProviderId, AgentSettings, ModelOption, ProviderModels, ProviderStatus } from "@studio/shared";
 import { studio } from "../lib/api";
 import { Check, Refresh } from "./Icons";
 
@@ -12,7 +12,7 @@ import { Check, Refresh } from "./Icons";
 
 export const PROVIDERS: { id: AgentProviderId; label: string; color: string; glyph: string }[] = [
   { id: "claude", label: "Claude Code", color: "#D97757", glyph: "C" },
-  { id: "codex", label: "Codex", color: "#17171C", glyph: "◎" },
+  { id: "codex", label: "Codex", color: "#3F3F46", glyph: "◎" },
 ];
 
 const EFFORTS: Record<string, { label: string; hint: string }> = {
@@ -77,7 +77,7 @@ function usePopover() {
 }
 
 const chipClass =
-  "flex h-7 items-center gap-1.5 rounded-lg px-2 text-[12px] text-ink-2 transition hover:bg-black/[.06] data-[open=true]:bg-black/[.06]";
+  "flex h-7 items-center gap-1.5 rounded-lg px-2 text-[12px] text-ink-2 transition hover:bg-soft data-[open=true]:bg-soft";
 const menuClass = "absolute z-40 rounded-xl bg-surface p-1.5 shadow-[0_18px_44px_-12px_rgba(0,0,0,.35),0_0_0_1px_rgba(0,0,0,.07)] animate-in";
 
 function Caret() {
@@ -146,7 +146,7 @@ export function AgentControls(props: {
                       onClick={() => p.id !== v.provider && props.onChange({ provider: p.id })}
                       title={!st ? "" : !st.installed ? "Not installed" : st.authenticated === false ? "Not signed in" : ""}
                       className="rounded-md py-1 text-[12px] font-medium disabled:opacity-40"
-                      style={v.provider === p.id ? { background: "#fff", boxShadow: "var(--shadow-1)", color: "var(--color-ink)" } : { color: "var(--color-ink-2)" }}
+                      style={v.provider === p.id ? { background: "var(--color-surface)", boxShadow: "var(--shadow-1), 0 0 0 1px var(--color-line)", color: "var(--color-ink)" } : { color: "var(--color-ink-2)" }}
                     >
                       {p.label}
                     </button>
@@ -186,13 +186,13 @@ export function AgentControls(props: {
               {error && !models.length && <div className="px-2.5 py-2 text-[11.5px] text-bad">{error}</div>}
             </div>
             <div className="mt-1 flex items-center border-t border-line-2 px-1 pt-1">
-              <button className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted hover:bg-black/5 hover:text-ink" onClick={() => void reload()}>
+              <button className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted hover:bg-soft hover:text-ink" onClick={() => void reload()}>
                 <Refresh size={11} /> Refresh
               </button>
               <span className="flex-1" />
               {props.onMakeDefault && (
                 <button
-                  className="rounded-md px-1.5 py-1 text-[11px] text-muted hover:bg-black/5 hover:text-ink"
+                  className="rounded-md px-1.5 py-1 text-[11px] text-muted hover:bg-soft hover:text-ink"
                   onClick={() => {
                     props.onMakeDefault!(v);
                     setSavedDefault(true);
@@ -244,7 +244,7 @@ export function AgentControls(props: {
       )}
 
       {/* Access */}
-      <AccessMenu value={v.access ?? "ask"} provider={provider.label} pos={pos} placement={props.placement} onChange={(access) => props.onChange({ ...v, access })} />
+      <AccessMenu value={v.access ?? DEFAULT_ACCESS} provider={provider.label} pos={pos} placement={props.placement} onChange={(access) => props.onChange({ ...v, access })} />
 
       {/* Fast mode */}
       {model?.fast && (
@@ -253,7 +253,7 @@ export function AgentControls(props: {
           data-open={Boolean(v.fast)}
           onClick={() => set({ fast: !v.fast })}
           title={`${model.fast.label}: ${model.fast.description ?? "faster responses"} (${v.fast ? "on" : "off"})`}
-          style={v.fast ? { color: "#9A6418", background: "var(--color-warn-soft)" } : undefined}
+          style={v.fast ? { color: "var(--color-warn)", background: "var(--color-warn-soft)" } : undefined}
         >
           ⚡{v.fast && <span className="font-medium">Fast</span>}
         </button>

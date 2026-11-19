@@ -1,6 +1,6 @@
 import { basename, join } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { AgentEvent, AgentRequest, ChatTurn, Selection } from "@studio/shared";
+import type { AgentEvent, AgentRequest, ChatTurn, ProjectKind, Selection } from "@studio/shared";
 import { commitAll } from "../history";
 import { paths } from "../paths";
 import { projects } from "../projects";
@@ -8,7 +8,7 @@ import { claudeDriver } from "./claude";
 import { codexDriver } from "./codex";
 import type { AgentDriver, DriverEvent } from "./driver";
 import { setToolContext, toolServerUrl } from "./tools";
-import { denyOpen, makeApprover } from "./approvals";
+import { denyOpen, makeApprover, makeAsker, skipOpenQuestions } from "./approvals";
 
 const drivers: Record<string, AgentDriver> = { claude: claudeDriver, codex: codexDriver };
 
@@ -53,6 +53,8 @@ function stepLabel(name: string, input: Record<string, unknown> = {}): { label: 
       return { label: "Checking for errors" };
     case "mcp__studio__get_selection":
       return { label: "Looking at your selection" };
+    case "mcp__studio__ask_teacher":
+      return null; // the questions show as a card
     default:
       // Provider-internal tools (e.g. Codex's code runner) get a neutral label.
       return { label: "Working it out" };
@@ -97,13 +99,29 @@ export async function sendToAgent(req: AgentRequest, emit: Emit): Promise<{ turn
   projects.saveChat(req.projectId, chat);
   emit({ type: "turn.started", projectId: req.projectId, turnId, text: req.text, selection: req.selection });
 
+  // Questions from the assistant: recorded on the turn and shown as a card in the chat.
+  const ask = makeAsker(
+    req.projectId,
+    turnId,
+    (e) => {
+      if (e.type === "question") turn.questions = [...(turn.questions ?? []), e.request];
+      if (e.type === "question.resolved")
+        turn.questions = (turn.questions ?? []).map((q) => (q.requestId === e.requestId ? { ...q, resolved: true, answers: e.answers } : q));
+      projects.saveChat(req.projectId, chat);
+      emit(e);
+    },
+    abort.signal,
+  );
+
   setToolContext(req.projectId, {
     selection: req.selection,
+    ask,
     onPreviewUpdated: () => emit({ type: "preview.updated", projectId: req.projectId }),
     onStep: () => {},
   });
 
   const prompt = [
+    introInstructions(req.intro, projects.manifest(req.projectId).kind),
     req.selection ? describeSelection(req.selection) : "",
     req.sceneId && !req.selection ? `[The teacher is looking at scene "${req.sceneId}".]` : "",
     req.text,
@@ -184,6 +202,7 @@ export async function sendToAgent(req: AgentRequest, emit: Emit): Promise<{ turn
       turn.finishedAt = new Date().toISOString();
       running.delete(req.projectId);
       denyOpen(req.projectId, turnId, emit);
+      skipOpenQuestions(req.projectId, turnId, emit);
       const all = projects.chat(req.projectId);
       const i = all.findIndex((t) => t.turnId === turnId);
       if (i >= 0) all[i] = turn;
@@ -205,4 +224,26 @@ export function interruptAgent(projectId: string): void {
 
 export function isRunning(projectId: string): boolean {
   return running.has(projectId);
+}
+
+/** Extra instructions for a project's first message (guided start, starting from a script). */
+function introInstructions(intro: AgentRequest["intro"], kind: ProjectKind): string {
+  if (!intro) return "";
+  const parts: string[] = [];
+  if (intro.guided) {
+    parts.push(
+      "[Guided start: before building anything, call the ask_teacher tool once with 2-4 short questions that would change what you make " +
+        "(for example the class level, what students should take away, the style or tone, and pacing). Give concrete options tailored to this topic, " +
+        "skip anything the request already answers, then build using the answers.]",
+    );
+  }
+  if (intro.script && kind !== "lab") {
+    const wait = kind === "video" ? 'self.wait_until("name")' : 'await scene.waitUntil("name")';
+    parts.push(
+      "[Start from a script: the teacher's message below is the narration. Split it into scenes at natural breaks. For each scene, save its words in " +
+        "narration/<scene>.md, keeping the teacher's wording (fix only obvious typos), and put {{mark:name}} cues before the words where something " +
+        `should appear. Build each scene so the visuals follow the words, using ${wait} at those cues. Don't generate audio: Apollo Board voices the scripts when you finish.]`,
+    );
+  }
+  return parts.join("\n");
 }

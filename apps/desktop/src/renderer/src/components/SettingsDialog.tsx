@@ -34,7 +34,7 @@ export function SettingsDialog(props: { onClose: () => void; onProviders: (p: Pr
       {!providers && <div className="spinner my-3" />}
       {providers?.map((p) => (
         <div key={p.id} className="flex items-center gap-3 border-t border-line-2 py-3 first-of-type:border-0">
-          <span className="grid h-8 w-8 flex-none place-items-center rounded-[9px] text-[12px] font-bold text-white" style={{ background: p.id === "claude" ? "#D97757" : "#17171C" }}>
+          <span className="grid h-8 w-8 flex-none place-items-center rounded-[9px] text-[12px] font-bold text-white" style={{ background: p.id === "claude" ? "#D97757" : "#3F3F46" }}>
             {p.id === "claude" ? "C" : "◎"}
           </span>
           <div className="min-w-0 flex-1">
@@ -50,7 +50,7 @@ export function SettingsDialog(props: { onClose: () => void; onProviders: (p: Pr
 
       <div className="eyebrow mb-1 mt-5">Rendering</div>
       <div className="flex items-center gap-3 border-t border-line-2 py-3 first-of-type:border-0">
-        <span className="grid h-8 w-8 flex-none place-items-center rounded-[9px] bg-[#E3F4F9] text-[12px] font-bold text-[#1F6E82]">CE</span>
+        <span className="grid h-8 w-8 flex-none place-items-center rounded-[9px] bg-context-soft text-[12px] font-bold text-context">CE</span>
         <div className="flex-1">
           <b className="font-medium">Manim Community + LaTeX</b>
           <small className="block text-[12px] text-muted">{installing ? setupLog ?? "Installing…" : "For videos. Installed into the app's own folder."}</small>
@@ -78,7 +78,7 @@ export function SettingsDialog(props: { onClose: () => void; onProviders: (p: Pr
         )}
       </div>
       <div className="flex items-center gap-3 border-t border-line-2 py-3">
-        <span className="grid h-8 w-8 flex-none place-items-center rounded-[9px] bg-[#E6F4EA] text-[12px] font-bold text-[#2F7D4A]">W</span>
+        <span className="grid h-8 w-8 flex-none place-items-center rounded-[9px] bg-good-soft text-[12px] font-bold text-good">W</span>
         <div className="flex-1">
           <b className="font-medium">manim-web and Lab libraries</b>
           <small className="block text-[12px] text-muted">Built in. Works offline.</small>
@@ -94,7 +94,7 @@ export function SettingsDialog(props: { onClose: () => void; onProviders: (p: Pr
           Open
         </button>
       </div>
-      <p className="mb-0 mt-4 text-[12px] text-muted">No account needed. Signing in with Google is only required to publish links.</p>
+      <p className="mb-0 mt-4 text-[12px] text-muted">Everything stays on this computer. No account, nothing uploaded; only your assistant (Claude Code or Codex) talks to its own service.</p>
     </Modal>
   );
 }

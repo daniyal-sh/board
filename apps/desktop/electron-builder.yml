@@ -1,12 +1,12 @@
-appId: org.studio.app
-productName: Studio
+appId: com.apollo.board
+productName: Apollo Board
 directories:
   output: release
   buildResources: build
 files:
   - out/**
   - package.json
-  # Studio drives the teacher's own installed `claude`, so the SDK's bundled CLI binary isn't needed.
+  # Apollo Board drives the teacher's own installed `claude`, so the SDK's bundled CLI binary isn't needed.
   - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**"
 asarUnpack:
   - node_modules/@anthropic-ai/claude-agent-sdk/**
@@ -21,9 +21,7 @@ extraResources:
     to: guides
   - from: ../../python
     to: python
-protocols:
-  - name: Studio
-    schemes: [studio]
+# Releases are uploaded to GitHub by hand or CI; the app itself never checks for updates.
 publish:
   provider: github
 win:
@@ -39,7 +37,7 @@ mac:
     - "!node_modules/onnxruntime-node/bin/napi-v3/{win32,linux}/**"
   category: public.app-category.education
   extendInfo:
-    NSMicrophoneUsageDescription: Studio records your voice for narration. Recordings stay on this computer.
+    NSMicrophoneUsageDescription: Apollo Board records your voice for narration. Recordings stay on this computer.
 linux:
   target: [AppImage, deb]
   files:

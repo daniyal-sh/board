@@ -24,6 +24,7 @@ const api: StudioApi = {
     models: (provider, refresh) => invoke(IPC.agentModels, provider, refresh),
     setSettings: (id, settings) => invoke(IPC.agentSettings, id, settings),
     respondApproval: (id, requestId, decision) => invoke(IPC.agentApproval, id, requestId, decision),
+    answerQuestions: (id, requestId, answers) => invoke(IPC.agentAnswer, id, requestId, answers),
     defaults: () => invoke(IPC.agentDefaults),
     setDefaults: (settings) => invoke(IPC.agentSetDefaults, settings),
   },
@@ -52,6 +53,7 @@ const api: StudioApi = {
     fullPreview: (id) => invoke(IPC.videoFull, id),
     onProgress: (cb) => subscribe<string>(IPC.videoProgress, cb),
     exportMp4: (id) => invoke(IPC.videoExport, id),
+    exportGif: (id) => invoke(IPC.exportGif, id),
   },
   voice: {
     voices: () => invoke(IPC.voiceList),
@@ -63,14 +65,6 @@ const api: StudioApi = {
     remove: (id, scene) => invoke(IPC.voiceRemove, id, scene),
     autoNarrate: (id, opts) => invoke(IPC.voiceAuto, id, opts),
     onProgress: (cb) => subscribe<string>(IPC.voiceProgress, cb),
-  },
-  publish: {
-    account: () => invoke(IPC.publishAccount),
-    signIn: () => invoke(IPC.publishSignIn),
-    signOut: () => invoke(IPC.publishSignOut),
-    publish: (req) => invoke(IPC.publishPublish, req),
-    setVisibility: (id, v) => invoke(IPC.publishVisibility, id, v),
-    unpublish: (id) => invoke(IPC.publishUnpublish, id),
   },
 };
 

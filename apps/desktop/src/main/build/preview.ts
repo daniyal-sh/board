@@ -65,7 +65,7 @@ export function previewUrl(projectId: string, query = ""): string {
 export async function buildPreview(projectId: string): Promise<BuildResult> {
   const dir = projects.dir(projectId);
   const m = projects.manifest(projectId);
-  const res = await buildSingleFile(dir, m.kind, m.title, true);
+  const res = await buildSingleFile(dir, m.kind, m.title, true, m.aspect);
   if (!res.ok || !res.html) return { ok: false, errors: res.errors };
   fs.mkdirSync(join(dir, "build"), { recursive: true });
   fs.writeFileSync(join(dir, "build", "preview.html"), res.html);
@@ -76,7 +76,7 @@ export async function buildPreview(projectId: string): Promise<BuildResult> {
 export async function buildExport(projectId: string): Promise<{ html: string; sizeBytes: number; libraries: string[] }> {
   const dir = projects.dir(projectId);
   const m = projects.manifest(projectId);
-  const res = await buildSingleFile(dir, m.kind, m.title, false);
+  const res = await buildSingleFile(dir, m.kind, m.title, false, m.aspect);
   if (!res.ok || !res.html) throw new Error(res.errors.join("\n") || "Build failed");
   return { html: res.html, sizeBytes: res.sizeBytes ?? 0, libraries: res.libraries };
 }
@@ -185,7 +185,8 @@ async function inspectNow(
 export function webSceneThumbnails(projectId: string): Promise<number> {
   const run = queue.then(async () => {
     const win = inspectorWindow();
-    win.setContentSize(VIEWPORTS.desktop.width, Math.round((VIEWPORTS.desktop.width * 9) / 16));
+    if (projects.manifest(projectId).aspect === "vertical") win.setContentSize(450, 800);
+    else win.setContentSize(VIEWPORTS.desktop.width, Math.round((VIEWPORTS.desktop.width * 9) / 16));
     await win.loadURL(previewUrl(projectId, "still=1")).catch(() => {});
     let scenes: { id: string; start: number; end: number }[] = [];
     for (let i = 0; i < 60 && !scenes.length; i++) {
@@ -202,6 +203,64 @@ export function webSceneThumbnails(projectId: string): Promise<number> {
     }
     void win.loadURL("about:blank").catch(() => {});
     return scenes.length;
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Web animations as a GIF: step through the recorded timeline in the hidden window, capture each
+ * frame and encode them with one shared palette (so flat colours don't flicker).
+ */
+export function webGif(projectId: string, outPath: string, size: { width: number; height: number; fps: number }): Promise<void> {
+  const run = queue.then(async () => {
+    // gifenc is CommonJS: its functions may arrive on `default`.
+    const mod = await import("gifenc");
+    const { GIFEncoder, applyPalette, quantize } = typeof mod.quantize === "function" ? mod : (mod as unknown as { default: typeof mod }).default;
+    const win = inspectorWindow();
+    win.setContentSize(size.width, size.height);
+    try {
+      await win.loadURL(previewUrl(projectId, "still=1")).catch(() => {});
+      let duration = 0;
+      for (let i = 0; i < 80 && !duration; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+        duration = Number(await win.webContents.executeJavaScript("window.__studioPlayer?.ready ? window.__studioPlayer.duration() : 0").catch(() => 0));
+      }
+      if (!duration) throw new Error("The animation didn't load. Check the preview for errors.");
+      // Long animations make huge GIFs; keep the first two minutes.
+      const count = Math.max(1, Math.ceil(Math.min(duration, 120) * size.fps));
+      const frames: Uint8Array[] = [];
+      for (let f = 0; f < count; f++) {
+        await win.webContents.executeJavaScript(`window.__studioPlayer.seek(${(f / size.fps).toFixed(4)})`);
+        await win.webContents.executeJavaScript("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
+        const img = (await win.webContents.capturePage()).resize({ width: size.width, height: size.height });
+        const bgra = img.toBitmap();
+        const rgba = new Uint8Array(bgra.length);
+        for (let p = 0; p < bgra.length; p += 4) {
+          rgba[p] = bgra[p + 2];
+          rgba[p + 1] = bgra[p + 1];
+          rgba[p + 2] = bgra[p];
+          rgba[p + 3] = 255;
+        }
+        frames.push(rgba);
+      }
+      // Shared palette from a spread of frames.
+      const pick = frames.filter((_, k) => k % Math.max(1, Math.floor(frames.length / 12)) === 0).slice(0, 12);
+      const sheet = new Uint8Array(pick.reduce((n, fr) => n + fr.length, 0));
+      let o = 0;
+      for (const fr of pick) {
+        sheet.set(fr, o);
+        o += fr.length;
+      }
+      const palette = quantize(sheet, 256);
+      const gif = GIFEncoder();
+      const delay = Math.round(1000 / size.fps);
+      for (const fr of frames) gif.writeFrame(applyPalette(fr, palette), size.width, size.height, { palette, delay });
+      gif.finish();
+      fs.writeFileSync(outPath, gif.bytes());
+    } finally {
+      void win.loadURL("about:blank").catch(() => {});
+    }
   });
   queue = run.catch(() => undefined);
   return run;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { FullPreview, SceneMeta, SceneTimeline, Selection, VideoEnvStatus } from "@studio/shared";
+import type { Aspect, FullPreview, SceneMeta, SceneTimeline, Selection, VideoEnvStatus } from "@studio/shared";
 import { errorMessage, studio } from "../lib/api";
 import { Refresh } from "./Icons";
 import { Filmstrip, fmt, StartOverlay, Transport, usePlayerKeys, type Segment } from "./PlayerChrome";
@@ -21,10 +21,11 @@ function hitTest(tl: SceneTimeline, t: number, x: number, y: number) {
 }
 
 const CLIP_STYLES: React.CSSProperties[] = [
-  { background: "#E3F4F9", color: "#1F6E82", boxShadow: "inset 0 0 0 1px #C7E7F0" },
-  { background: "#FFF7D1", color: "#7A6200", boxShadow: "inset 0 0 0 1px #F5E59A" },
-  { background: "#E6F4EA", color: "#2F7D4A", boxShadow: "inset 0 0 0 1px #C9E6D2" },
-  { background: "#F1EBF6", color: "#6B4B7E", boxShadow: "inset 0 0 0 1px #E0D3EA" },
+  ...["--color-context", "--color-warn", "--color-good", "--color-accent-ink"].map((c) => ({
+    background: `color-mix(in srgb, var(${c}) 10%, var(--color-surface))`,
+    color: `var(${c})`,
+    boxShadow: `inset 0 0 0 1px color-mix(in srgb, var(${c}) 30%, var(--color-surface))`,
+  })),
 ];
 
 type Mode = "scene" | "full";
@@ -36,6 +37,7 @@ export function VideoStage(props: {
   revision: number;
   selection: Selection | null;
   onSelect: (s: Selection | null) => void;
+  aspect?: Aspect;
   /** Whole-video mode: the scene under the playhead changed. */
   onActiveScene?: (sceneId: string) => void;
 }) {
@@ -225,7 +227,10 @@ export function VideoStage(props: {
       </div>
 
       <div className="flex min-h-0 items-center justify-center">
-        <div className="relative aspect-video max-h-full w-full overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)]">
+        <div
+          className={`relative overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] ${props.aspect === "vertical" ? "h-full max-w-full" : "aspect-video max-h-full w-full"}`}
+          style={props.aspect === "vertical" ? { aspectRatio: "9 / 16" } : undefined}
+        >
           {src ? (
             <>
               <video
@@ -359,7 +364,7 @@ function VideoSetup(props: { onReady: (s: VideoEnvStatus) => void }) {
       <div className="card max-w-[460px] p-6 animate-in">
         <h2 className="serif m-0 text-[28px]">One-time video setup</h2>
         <p className="mt-1 text-ink-2">
-          Videos are rendered on your computer with Manim. Studio will download Python, Manim and LaTeX (about 300 MB) into its own folder. Nothing else on your
+          Videos are rendered on your computer with Manim. Apollo Board will download Python, Manim and LaTeX (about 300 MB) into its own folder. Nothing else on your
           computer changes.
         </p>
         {log.length > 0 && (

@@ -1,10 +1,12 @@
-import type { ProjectKind, ProjectLength } from "@studio/shared";
+import type { Aspect, ProjectKind, ProjectLength } from "@studio/shared";
 
 export interface InstructionContext {
   kind: ProjectKind;
   title: string;
   length: ProjectLength;
   audience?: string;
+  /** Videos and web animations. */
+  aspect?: Aspect;
   /** Absolute path to the vendored libraries (read-only reference for type declarations). */
   libsDir: string;
 }
@@ -32,7 +34,7 @@ export function projectInstructions(ctx: InstructionContext): string {
 
 You are helping a teacher create ${kindLine[ctx.kind]}
 ${ctx.audience ? `Audience: ${ctx.audience}.\n` : ""}Length: ${LENGTH[ctx.length]}
-
+${frameLine(ctx)}
 **Before you start, read \`${KIND_GUIDE[ctx.kind]}\`.** Library guides are in \`.studio/guide/libs/\`.
 Vendored library sources and type declarations (read-only) are in \`${ctx.libsDir.replaceAll("\\", "/")}\`.
 
@@ -42,13 +44,14 @@ The teacher is an expert in their subject, not a programmer. They see a live pre
 
 - Reply in short, plain sentences about what changed **on screen** ("The secant line now shrinks over 6 seconds"). No code in replies unless they ask.
 - Make reasonable choices yourself. Ask a question only when the request is genuinely ambiguous and a wrong guess would waste their time.
+- To ask, use the \`ask_teacher\` tool: short multiple-choice questions the teacher answers with a click. Don't ask questions in plain text.
 - If a request is pedagogically or factually off, say so briefly and suggest a better option.
 - Match the audience's level. Get the subject matter right: correct maths, science, units and notation.
 
 ## How to work
 
 1. Edit files only inside this project folder. Do not touch \`.studio/\` except to read guides.
-2. Check your work with the Studio tools:
+2. Check your work with the Apollo Board tools:
    - \`render_preview\` after every change; it returns build or render errors. Fix them before you reply.
    - \`get_console\` for runtime errors and warnings in web previews.
    - \`get_frames\` to look at the result (layouts, overlaps, cut-off text, pacing). Check before you say it is done.
@@ -60,6 +63,16 @@ ${ctx.kind === "lab" ? "5. A Lab is one page. Give meaningful parts a data-part 
 `;
 }
 
+function frameLine(ctx: InstructionContext): string {
+  if (ctx.kind === "lab") return "";
+  if (ctx.aspect === "vertical") {
+    return ctx.kind === "video"
+      ? "Frame: **vertical 9:16** (Shorts / Reels / TikTok), rendered at 1080×1920. Manim keeps the frame 8 units tall, so it is only 4.5 units wide (x from -2.25 to 2.25): stack things vertically, use large text, keep everything inside.\n"
+      : "Frame: **vertical 9:16** (Shorts / Reels / TikTok). The visible area is about 4.5 units wide and 8 tall (x from -2.25 to 2.25): stack things vertically, use large text, keep everything inside.\n";
+  }
+  return "Frame: landscape 16:9 (about 14.2 units wide and 8 tall).\n";
+}
+
 export function claudeMd(): string {
   return "@AGENTS.md\n";
 }
@@ -67,10 +80,11 @@ export function claudeMd(): string {
 /** Appended to the agent's system prompt (both Claude and Codex). */
 export function systemAppend(kind: ProjectKind): string {
   return [
-    "You are running inside Studio, a desktop app that helps teachers make Manim videos, web animations and interactive Labs.",
+    "You are running inside Apollo Board, a desktop app that helps teachers make Manim videos, web animations and interactive Labs.",
     `This project is a ${kind === "lab" ? "Lab" : kind === "web" ? "web animation" : "video"}. Follow AGENTS.md in the project folder.`,
-    "The teacher sees a preview, not your code. Keep replies short and visual. Always verify your work with the Studio tools before finishing.",
+    "The teacher sees a preview, not your code. Keep replies short and visual. Always verify your work with the Apollo Board tools before finishing.",
     "You may use the shell and the web when it helps (e.g. downloading a document the teacher mentions into the project); some actions need the teacher's approval.",
+    "To ask the teacher something, use the ask_teacher tool (clickable options), not plain-text questions or other question tools.",
     "If a command fails because the sandbox blocks it (for example no network access), request permission to run it outside the sandbox instead of giving up.",
   ].join("\n");
 }

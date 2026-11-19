@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @studio/desktop dev",
-    "dev:cloud": "pnpm --filter @studio/cloud dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"

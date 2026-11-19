@@ -7,7 +7,7 @@ import type { HistoryEntry } from "@studio/shared";
  * Project history backed by a plain git repository (isomorphic-git, so teachers
  * do not need git installed). Every agent turn becomes one commit.
  */
-const AUTHOR = { name: "Studio", email: "studio@localhost" };
+const AUTHOR = { name: "Apollo Board", email: "board@localhost" };
 
 /** Files that never belong in history. */
 const IGNORE = ["build/", ".studio/", "node_modules/", "*.log", "__pycache__/", "media/", "scenes/index.ts", "audio/"].join("\n") + "\n";

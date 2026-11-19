@@ -236,37 +236,6 @@ class TheEnd(StudioScene):
   };
 }
 
-/** Publish a sample Lab to a running cloud (STUDIO_CLOUD_URL) with a pre-made session token. */
-async function publishCase(report: Record<string, unknown>) {
-  const cloud = await import("./publish");
-  cloud.setTokenForTesting(process.env.STUDIO_SELFTEST_TOKEN ?? "testtoken");
-  const me = await cloud.account();
-  const p = await projects.create({ kind: "lab", prompt: "Selftest publish", length: "short", title: `Selftest publish ${Date.now()}` });
-  writeFiles(p.dir, SAMPLE_LAB);
-  const first = await cloud.publish({ projectId: p.manifest.id, visibility: "unlisted" });
-  const page = await fetch(first.url).then((r) => r.text());
-  const contentUrl = /<iframe src="([^"]+)"/.exec(page)?.[1]?.replaceAll("&amp;", "&");
-  const content = contentUrl ? await fetch(contentUrl) : null;
-  const html = content ? await content.text() : "";
-  const again = await cloud.publish({ projectId: p.manifest.id, visibility: "unlisted" });
-  const vis = await cloud.setVisibility(p.manifest.id, "private");
-  const anon = await fetch(first.url).then((r) => r.status);
-  await cloud.unpublish(p.manifest.id);
-  const gone = await fetch(first.url).then((r) => r.status);
-  report.publish = {
-    me,
-    url: first.url,
-    sameIdOnUpdate: again.id === first.id,
-    contentStatus: content?.status,
-    contentCsp: content?.headers.get("content-security-policy")?.slice(0, 60),
-    contentHasLab: html.includes("Parabola Lab") && !html.includes("__studioPreview"),
-    contentBytes: html.length,
-    privateVisibility: vis.visibility,
-    anonymousAfterPrivate: anon,
-    afterUnpublish: gone,
-  };
-}
-
 /** Drive the real UI in an offscreen window and save screenshots of each screen. */
 async function uiCase(out: string, report: Record<string, unknown>) {
   const { BrowserWindow } = await import("electron");
@@ -316,7 +285,7 @@ async function uiCase(out: string, report: Record<string, unknown>) {
   report.uiSelect = await clickText("Select");
   await wait(400);
   await shot("select");
-  await clickText("Share");
+  await clickText("Export");
   await wait(800);
   await shot("share");
   await js(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }))`);
@@ -345,7 +314,43 @@ export async function runSelftest(out: string): Promise<void> {
         report[`models_${prov}`] = { ms: Date.now() - t, count: r.models.length, error: r.error, sample: r.models.slice(0, 4) };
       }
     }
-    if (mode === "publish") await publishCase(report);
+    if (mode === "formats") await formatsCase(out, report);
+    if (mode === "guided") {
+      // A guided first message: the assistant should ask through the question card, then build.
+      const { answerQuestions } = await import("./agents/approvals");
+      const provider = (process.env.STUDIO_SELFTEST_AGENT ?? "claude") as AgentProviderId;
+      const cheap = provider === "claude" ? { model: "haiku", effort: "low" } : { model: "gpt-5.6-luna", effort: "low" };
+      const script = process.env.STUDIO_SELFTEST_SCRIPT === "1";
+      const kind: ProjectKind = script ? "web" : "lab";
+      const text = script
+        ? "A circle is the set of points at the same distance from a centre. {{mark:radius}} That distance is the radius. Double it and you get the diameter."
+        : "A small lab about the Pythagorean theorem";
+      const p = await projects.create({ kind, prompt: text, length: "short", agent: { provider, ...cheap } });
+      const id = p.manifest.id;
+      const asked: unknown[] = [];
+      const steps: string[] = [];
+      let reply = "";
+      const result = await new Promise<string>((resolve) => {
+        void sendToAgent({ projectId: id, text, intro: { guided: true, script } }, (e) => {
+          if (e.type === "question") {
+            asked.push(e.request);
+            setTimeout(() => answerQuestions(e.request.requestId, e.request.questions.map((q) => q.options[0]), () => {}), 300);
+          }
+          if (e.type === "step") steps.push(`${e.status} ${e.label}`);
+          if (e.type === "text") reply += e.delta;
+          if (e.type === "turn.completed" || e.type === "turn.failed") resolve(e.type === "turn.failed" ? `failed: ${e.error}` : "completed");
+        });
+      });
+      const narr = join(p.dir, "narration");
+      report[`guided_${provider}${script ? "_script" : ""}`] = {
+        result,
+        asked,
+        steps: steps.filter((x) => x.startsWith("done")).length,
+        scenes: projects.manifest(id).scenes.map((x) => x.id),
+        narration: fs.existsSync(narr) ? fs.readdirSync(narr).filter((f) => f.endsWith(".md")).map((f) => [f, fs.readFileSync(join(narr, f), "utf8").slice(0, 200)]) : [],
+        reply: reply.slice(-300),
+      };
+    }
     if (mode === "access") {
       // Approval cards answered automatically: allow, then deny; then Auto mode (no cards).
       const { respond } = await import("./agents/approvals");
@@ -461,4 +466,69 @@ export async function runSelftest(out: string): Promise<void> {
   console.log("SELFTEST_REPORT " + join(out, "report.json"));
   closeInspector();
   setTimeout(() => app.exit(0), 200);
+}
+
+/** Vertical web animation and video, each exported as a GIF. */
+async function formatsCase(out: string, report: Record<string, unknown>) {
+  const { webGif, webSceneThumbnails } = await import("./build/preview");
+  const { exportVideoGif } = await import("./video/export");
+  const { setupVideoEnv } = await import("./video/env");
+  const { video } = await import("./video/renderer");
+
+  const w = await projects.create({ kind: "web", prompt: "formats", length: "short", aspect: "vertical", title: `Vertical web ${Date.now()}` });
+  writeFiles(w.dir, SAMPLE_WEB);
+  const wid = w.manifest.id;
+  const built = await buildPreview(wid);
+  const t0 = Date.now();
+  let webErr: string | undefined;
+  try {
+    await webGif(wid, join(out, "web-vertical.gif"), { width: 360, height: 640, fps: 15 });
+  } catch (e) {
+    webErr = String(e);
+  }
+  report.webVertical = {
+    build: built.ok,
+    aspect: projects.manifest(wid).aspect,
+    gifMs: Date.now() - t0,
+    gifBytes: fs.existsSync(join(out, "web-vertical.gif")) ? fs.statSync(join(out, "web-vertical.gif")).size : 0,
+    error: webErr,
+    thumbs: await webSceneThumbnails(wid),
+  };
+  const td = join(w.dir, "build", "thumbs");
+  if (fs.existsSync(td)) for (const f of fs.readdirSync(td)) fs.copyFileSync(join(td, f), join(out, `vthumb-${f}`));
+
+  await setupVideoEnv(() => {});
+  const v = await projects.create({ kind: "video", prompt: "formats", length: "short", aspect: "vertical", title: `Vertical video ${Date.now()}` });
+  writeFiles(v.dir, {
+    "scenes/01_tall.py": `from manim import *
+from studio_manim import StudioScene
+
+
+class Tall(StudioScene):
+    def construct(self):
+        title = Text("Tall", font_size=72).to_edge(UP)
+        dots = VGroup(*[Dot(radius=0.2, color=BLUE) for _ in range(5)]).arrange(DOWN, buff=0.5)
+        self.play(Write(title))
+        self.play(LaggedStart(*[GrowFromCenter(d) for d in dots], lag_ratio=0.2))
+        self.wait(0.5)
+`,
+  });
+  const vid = v.manifest.id;
+  const draft = await video.renderPreview(vid, "01_tall");
+  const frames = await video.frames(vid, "01_tall", [1.5]);
+  if (frames[0]) fs.writeFileSync(join(out, "video-vertical.png"), frames[0].png);
+  const t1 = Date.now();
+  let vidErr: string | undefined;
+  try {
+    await exportVideoGif(vid, join(out, "video-vertical.gif"), 360);
+  } catch (e) {
+    vidErr = String(e);
+  }
+  report.videoVertical = {
+    draft: draft.ok,
+    log: draft.ok ? undefined : draft.log,
+    gifMs: Date.now() - t1,
+    gifBytes: fs.existsSync(join(out, "video-vertical.gif")) ? fs.statSync(join(out, "video-vertical.gif")).size : 0,
+    error: vidErr,
+  };
 }

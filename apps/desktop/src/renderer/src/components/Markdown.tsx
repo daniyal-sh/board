@@ -14,7 +14,7 @@ function inline(text: string, key: string) {
     const t = m[0];
     const k = `${key}-${i++}`;
     if (t.startsWith("**")) out.push(<b key={k} className="font-semibold text-ink">{t.slice(2, -2)}</b>);
-    else if (t.startsWith("`")) out.push(<code key={k} className="rounded bg-black/5 px-1 font-mono text-[12px]">{t.slice(1, -1)}</code>);
+    else if (t.startsWith("`")) out.push(<code key={k} className="rounded bg-soft px-1 font-mono text-[12px]">{t.slice(1, -1)}</code>);
     else out.push(<em key={k}>{t.slice(1, -1)}</em>);
     last = m.index! + t.length;
   }

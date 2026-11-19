@@ -23,6 +23,8 @@ export interface SceneTimeline {
 type Quality = "draft" | "final";
 const QUALITY_FLAG: Record<Quality, string> = { draft: "-ql", final: "-qh" };
 const QUALITY_DIR: Record<Quality, string> = { draft: "480p15", final: "1080p60" };
+/** Vertical (9:16) videos: same quality presets, portrait resolution. Manim names the folder <height>p<fps>. */
+const VERTICAL: Record<Quality, { res: string; dir: string }> = { draft: { res: "480,854", dir: "854p15" }, final: { res: "1080,1920", dir: "1920p60" } };
 
 function run(args: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
@@ -86,17 +88,19 @@ async function render(projectId: string, sceneId: string | undefined, quality: Q
   const narration = join(dir, "build", "narration", `${id}.json`);
   const env = manimEnv({
     STUDIO_TIMELINE_OUT: join(outDir, `${id}.timeline.json`),
+    ...(projects.manifest(projectId).aspect === "vertical" ? { STUDIO_ASPECT: "vertical" } : {}),
     ...(fs.existsSync(narration) ? { STUDIO_NARRATION: narration } : {}),
   });
   // Manim's intermediate files have long names (…/partial_movie_files/<Class>/<64-char hash>.mp4).
   // Keep them under a short path so Windows' 260-character limit isn't hit; only the result is copied.
   const media = join(runtime.root, "m", projectId.slice(0, 8));
+  const vertical = projects.manifest(projectId).aspect === "vertical";
   const r = await run(
-    ["-m", "manim", "render", QUALITY_FLAG[quality], "--media_dir", media, "-o", id, `scenes/${file}`, cls],
+    ["-m", "manim", "render", QUALITY_FLAG[quality], ...(vertical ? ["-r", VERTICAL[quality].res] : []), "--media_dir", media, "-o", id, `scenes/${file}`, cls],
     dir,
     env,
   );
-  const produced = join(media, "videos", basename(file, ".py"), QUALITY_DIR[quality], `${id}.mp4`);
+  const produced = join(media, "videos", basename(file, ".py"), vertical ? VERTICAL[quality].dir : QUALITY_DIR[quality], `${id}.mp4`);
   if (r.code !== 0 || !fs.existsSync(produced)) {
     return { ok: false, scene: id, seconds: (Date.now() - t0) / 1000, log: cleanLog(r.out) };
   }

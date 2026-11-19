@@ -1,13 +1,12 @@
-/**
- * Product naming lives here so the app can be renamed in one place.
- * "Studio" is a working name until the real one is chosen.
- */
+/** Product naming lives here so the app can be renamed in one place. */
 export const BRAND = {
-  name: "Studio",
+  name: "Apollo Board",
+  /** Shown under the name: an open-source app made by the Apollo team. */
+  byline: "by the Apollo team",
   /** Folder under the user's Documents directory that holds projects. */
-  projectsFolder: "Studio",
+  projectsFolder: "Apollo Board",
   /** Reverse-DNS app id used by Electron and installers. */
-  appId: "org.studio.app",
-  /** Deep-link scheme for sign-in callbacks, e.g. studio://auth/callback */
-  protocol: "studio",
+  appId: "com.apollo.board",
+  /** Earlier working name: its folders are picked up on first launch. */
+  legacyName: "Studio",
 } as const;

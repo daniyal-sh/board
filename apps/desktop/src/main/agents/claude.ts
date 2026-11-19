@@ -1,6 +1,7 @@
 import { isAbsolute, relative, resolve } from "node:path";
 import { query, type CanUseTool, type Query, type SDKMessage, type SDKResultMessage } from "@anthropic-ai/claude-agent-sdk";
 import { systemAppend } from "@studio/agent-kit";
+import { DEFAULT_ACCESS } from "@studio/shared";
 import { executableFor } from "./detect";
 import type { AgentDriver, DriverEvent, TurnOptions } from "./driver";
 import { formatWait, providerEnv, tail } from "./process";
@@ -106,7 +107,7 @@ async function runOnce(opts: TurnOptions, emit: (e: DriverEvent) => void, resume
   const abort = new AbortController();
   const stderr = tail();
 
-  const access = opts.settings.access ?? "ask";
+  const access = opts.settings.access ?? DEFAULT_ACCESS;
   const askFirst = async (kind: "command" | "web" | "file" | "other", title: string, detail: string | undefined, input: Record<string, unknown>, reason?: string) => {
     const d = await opts.approve({ kind, title, detail, reason });
     return d === "deny"
@@ -167,7 +168,9 @@ async function runOnce(opts: TurnOptions, emit: (e: DriverEvent) => void, resume
       stderr: (d) => stderr.push(d),
       systemPrompt: { type: "preset", preset: "claude_code", append: systemAppend(opts.kind) },
       mcpServers: { studio: { type: "http", url: opts.mcpUrl } },
-      allowedTools: ["Read", "Glob", "Grep", "TodoWrite", "mcp__studio__render_preview", "mcp__studio__get_console", "mcp__studio__get_frames", "mcp__studio__get_selection"],
+      allowedTools: ["Read", "Glob", "Grep", "TodoWrite", "mcp__studio__render_preview", "mcp__studio__get_console", "mcp__studio__get_frames", "mcp__studio__get_selection", "mcp__studio__ask_teacher"],
+      // Questions go through Studio's ask_teacher card instead.
+      disallowedTools: ["AskUserQuestion"],
       ...(access === "full"
         ? { permissionMode: "bypassPermissions" as const, allowDangerouslySkipPermissions: true }
         : { permissionMode: "default" as const, canUseTool }),

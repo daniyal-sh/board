@@ -31,6 +31,27 @@ export interface AgentRequest {
   text: string;
   sceneId?: string;
   selection?: Selection;
+  /**
+   * How a project's first message is handled:
+   * - guided: the assistant asks a few quick questions before building
+   * - script: the message is the narration script; scenes are built to match it
+   */
+  intro?: { guided?: boolean; script?: boolean };
+}
+
+/** A multiple-choice question from the assistant (the teacher can also type an answer). */
+export interface TeacherQuestion {
+  question: string;
+  options: string[];
+  /** More than one option may be picked. */
+  multi?: boolean;
+}
+
+export interface QuestionRequest {
+  requestId: string;
+  /** Short line above the questions, e.g. "A few quick questions before I start". */
+  intro?: string;
+  questions: TeacherQuestion[];
 }
 
 export type StepStatus = "running" | "done" | "error";
@@ -66,6 +87,10 @@ export type AgentEvent =
   /** The assistant wants to do something that needs the teacher's OK. */
   | { type: "approval"; projectId: string; turnId: string; request: ApprovalRequest }
   | { type: "approval.resolved"; projectId: string; turnId: string; requestId: string; decision: ApprovalDecision }
+  /** The assistant asks the teacher a few multiple-choice questions. */
+  | { type: "question"; projectId: string; turnId: string; request: QuestionRequest }
+  /** answers[i] answers questions[i]; null when the teacher skipped. */
+  | { type: "question.resolved"; projectId: string; turnId: string; requestId: string; answers: string[] | null }
   | { type: "preview.updated"; projectId: string }
   | { type: "turn.completed"; projectId: string; turnId: string; commit?: string }
   | { type: "turn.failed"; projectId: string; turnId: string; error: string };
@@ -86,4 +111,6 @@ export interface ChatTurn {
   notices?: string[];
   /** Things the assistant asked permission for during this turn. */
   approvals?: (ApprovalRequest & { decision?: ApprovalDecision })[];
+  /** Questions the assistant asked during this turn, with the teacher's answers once given. */
+  questions?: (QuestionRequest & { resolved?: boolean; answers?: string[] | null })[];
 }

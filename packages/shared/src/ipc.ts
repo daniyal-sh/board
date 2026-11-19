@@ -33,12 +33,11 @@ import type {
   ProjectLength,
   ProjectManifest,
   ProjectSummary,
-  Visibility,
-  PublishInfo,
   NarrationInfo,
   VoiceOption,
   AgentSettings,
   ProviderModels,
+  Aspect,
 } from "./project.ts";
 
 export interface AppInfo {
@@ -51,6 +50,8 @@ export interface CreateProjectInput {
   kind: ProjectKind;
   prompt: string;
   length: ProjectLength;
+  /** Videos and web animations: landscape (16:9) or vertical (9:16) for Shorts and Reels. */
+  aspect?: Aspect;
   title?: string;
   provider?: AgentProviderId;
   /** Model, reasoning and speed for the new project (defaults are used when omitted). */
@@ -74,16 +75,6 @@ export interface BuildResult {
   errors: string[];
 }
 
-export interface Account {
-  email: string;
-  name?: string;
-  picture?: string;
-}
-
-export interface PublishRequest {
-  projectId: string;
-  visibility: Visibility;
-}
 
 /** The API exposed to the renderer as `window.studio`. */
 export interface StudioApi {
@@ -104,6 +95,8 @@ export interface StudioApi {
     setSettings(projectId: string, settings: AgentSettings): Promise<void>;
     /** Answer an approval card. */
     respondApproval(projectId: string, requestId: string, decision: ApprovalDecision): Promise<void>;
+    /** Answer the assistant's questions (null skips them). */
+    answerQuestions(projectId: string, requestId: string, answers: string[] | null): Promise<void>;
     /** Settings used for new projects. */
     defaults(): Promise<AgentSettings>;
     setDefaults(settings: AgentSettings): Promise<void>;
@@ -140,6 +133,8 @@ export interface StudioApi {
     fullPreview(projectId: string): Promise<FullPreview>;
     onProgress(cb: (message: string) => void): () => void;
     exportMp4(projectId: string): Promise<{ path: string } | null>;
+    /** Looping GIF of the whole video or web animation (asks where to save). */
+    exportGif(projectId: string): Promise<{ path: string; sizeBytes: number } | null>;
   };
   voice: {
     voices(): Promise<VoiceOption[]>;
@@ -150,18 +145,12 @@ export interface StudioApi {
     /** Raw 16 kHz mono samples of the teacher's recording. */
     saveRecording(projectId: string, sceneId: string, pcm16k: Float32Array): Promise<NarrationInfo>;
     remove(projectId: string, sceneId: string): Promise<void>;
-    /** Assistant writes every scene's script, then each is voiced and re-timed. */
-    autoNarrate(projectId: string, opts: { voice: string; speed: number }): Promise<{ voiced: string[]; failed: { sceneId: string; error: string }[] }>;
+    /**
+     * Assistant writes every scene's script, then each is voiced and re-timed.
+     * With scriptsReady the scripts already exist (a project started from a script): just voice them.
+     */
+    autoNarrate(projectId: string, opts: { voice: string; speed: number; scriptsReady?: boolean }): Promise<{ voiced: string[]; failed: { sceneId: string; error: string }[] }>;
     onProgress(cb: (message: string) => void): () => void;
-  };
-  /** Optional: only needed to publish links. Everything else works without an account. */
-  publish: {
-    account(): Promise<Account | null>;
-    signIn(): Promise<Account>;
-    signOut(): Promise<void>;
-    publish(req: PublishRequest): Promise<PublishInfo>;
-    setVisibility(projectId: string, visibility: Visibility): Promise<PublishInfo>;
-    unpublish(projectId: string): Promise<void>;
   };
 }
 
@@ -190,6 +179,7 @@ export const IPC = {
   agentModels: "agent:models",
   agentSettings: "agent:settings",
   agentApproval: "agent:approval",
+  agentAnswer: "agent:answer",
   agentDefaults: "agent:defaults",
   agentSetDefaults: "agent:setDefaults",
   videoStatus: "video:status",
@@ -198,6 +188,7 @@ export const IPC = {
   videoSceneUrl: "video:sceneUrl",
   videoTimeline: "video:timeline",
   videoExport: "video:export",
+  exportGif: "export:gif",
   videoFull: "video:full",
   videoProgress: "video:progress",
   voiceList: "voice:list",
@@ -209,10 +200,4 @@ export const IPC = {
   voiceRemove: "voice:remove",
   voiceAuto: "voice:auto",
   voiceProgress: "voice:progress",
-  publishAccount: "publish:account",
-  publishSignIn: "publish:signIn",
-  publishSignOut: "publish:signOut",
-  publishPublish: "publish:publish",
-  publishVisibility: "publish:visibility",
-  publishUnpublish: "publish:unpublish",
 } as const;

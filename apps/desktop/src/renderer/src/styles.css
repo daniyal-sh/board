@@ -1,38 +1,94 @@
 @import "tailwindcss";
-@import "@fontsource/instrument-serif/400.css";
-@import "@fontsource/instrument-serif/400-italic.css";
-@import "@fontsource-variable/inter";
-@import "@fontsource/jetbrains-mono/400.css";
-@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource-variable/figtree";
+@import "@fontsource/geist-mono/400.css";
+@import "@fontsource/geist-mono/500.css";
+
+/*
+ * Apollo Study Space, adapted for Apollo Board (see daniyal-sh/apollo DESIGN.md):
+ * off-white canvas, white panels with hairline zinc borders, graphite text, one solid indigo
+ * action per screen, blue for the assistant, solid (never translucent) tinted surfaces.
+ * Dark mode swaps the variables under html.dark.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-bg: #f3f1ec;
+  --color-bg: #f3f3f5;
   --color-surface: #ffffff;
-  --color-surface-2: #faf9f6;
-  --color-ink: #17171c;
-  --color-ink-2: #43434d;
-  --color-muted: #85838e;
-  --color-faint: #b4b1ba;
-  --color-line: #e7e4dd;
-  --color-line-2: #f0eee9;
-  --color-accent: #5146e5;
-  --color-accent-soft: #efeefd;
+  --color-surface-2: #f6f6f8;
+  --color-soft: #e9e9ed;
+  --color-ink: #27272a;
+  --color-on-ink: #ffffff;
+  --color-ink-2: #3f3f46;
+  --color-muted: #5c5c65;
+  --color-faint: #8b8b95;
+  --color-line: #d3d3d9;
+  --color-line-2: #e4e4e8;
+  --color-accent: #4338ca;
+  --color-accent-ink: #3730a3;
+  --color-accent-soft: #eeedfa;
+  --color-accent-line: #c7c3ee;
+  --color-assistant: #1d4ed8;
+  --color-assistant-soft: #ebf0fc;
+  --color-assistant-line: #bfcdf4;
+  --color-on-assistant: #ffffff;
+  --color-context: #0f766e;
+  --color-context-soft: #e8f2f1;
   --color-stage: #0e0e12;
-  --color-good: #2f7d4a;
-  --color-good-soft: #e8f5ec;
-  --color-bad: #b2433a;
-  --color-bad-soft: #fdecea;
-  --color-warn: #9a6418;
-  --color-warn-soft: #fbf1e1;
+  --color-good: #047857;
+  --color-good-soft: #e6f2ee;
+  --color-good-line: #b4d8cc;
+  --color-bad: #b91c1c;
+  --color-bad-soft: #f8e9e9;
+  --color-bad-line: #ecbcbc;
+  --color-warn: #9a4a08;
+  --color-warn-soft: #f5ede6;
+  --color-warn-line: #e3c7b1;
   --color-manim-blue: #58c4dd;
   --color-manim-yellow: #ffe14d;
   --color-manim-red: #f26b5b;
   --color-manim-green: #5db37a;
-  --font-sans: "Inter Variable", system-ui, sans-serif;
-  --font-serif: "Instrument Serif", Georgia, serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --shadow-1: 0 1px 2px rgba(23, 23, 28, 0.05), 0 0 0 1px rgba(23, 23, 28, 0.05);
-  --shadow-2: 0 16px 40px -16px rgba(23, 23, 28, 0.28), 0 0 0 1px rgba(23, 23, 28, 0.05);
+  --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-2: 0 18px 40px -16px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --radius-control: 8px;
+  --radius-panel: 12px;
+}
+
+html.dark {
+  color-scheme: dark;
+  --color-bg: #151517;
+  --color-surface: #1c1c1f;
+  --color-surface-2: #212125;
+  --color-soft: #2a2a2f;
+  --color-ink: #f4f4f5;
+  --color-on-ink: #18181b;
+  --color-ink-2: #d4d4d8;
+  --color-muted: #a1a1aa;
+  --color-faint: #71717a;
+  --color-line: #303035;
+  --color-line-2: #28282d;
+  --color-accent: #5b50f0;
+  --color-accent-ink: #a9a3ff;
+  --color-accent-soft: #26244a;
+  --color-accent-line: #403b86;
+  --color-assistant: #60a5fa;
+  --color-assistant-soft: #1d2a3d;
+  --color-assistant-line: #2f4b72;
+  --color-on-assistant: #0b1024;
+  --color-context: #5eccc4;
+  --color-context-soft: #1c2f2e;
+  --color-good: #34d399;
+  --color-good-soft: #1a2e27;
+  --color-good-line: #24584a;
+  --color-bad: #f87171;
+  --color-bad-soft: #351f20;
+  --color-bad-line: #6b3133;
+  --color-warn: #fbbf24;
+  --color-warn-soft: #332a17;
+  --color-warn-line: #6a5321;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 18px 40px -16px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 html,
@@ -44,8 +100,7 @@ body,
 body {
   background: var(--color-bg);
   color: var(--color-ink);
-  font: 13.5px/1.5 var(--font-sans);
-  letter-spacing: -0.006em;
+  font: 14px/1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
@@ -60,71 +115,112 @@ button:disabled {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+::selection {
+  background: var(--color-accent-soft);
+}
 
 @layer components {
+  /* Headings: Apollo uses one sans family; titles are semibold with tight tracking. */
   .serif {
-    font-family: var(--font-serif);
-    font-weight: 400;
-    letter-spacing: -0.01em;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.02em;
   }
   .eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted;
+    @apply text-[12px] font-medium text-muted;
   }
   .card {
-    @apply rounded-[14px] bg-surface shadow-1;
+    @apply rounded-[12px] border border-line bg-surface shadow-1;
   }
   .btn {
-    @apply inline-flex items-center gap-[7px] rounded-[9px] bg-surface px-[14px] py-[7px] text-[13px] font-medium shadow-1 transition-shadow;
+    @apply inline-flex h-9 items-center justify-center gap-[7px] rounded-[8px] border border-line bg-surface px-[14px] text-[13.5px] font-semibold whitespace-nowrap text-ink transition-colors;
   }
   .btn:hover:not(:disabled) {
-    box-shadow: 0 0 0 1px rgba(23, 23, 28, 0.16);
+    background: var(--color-surface-2);
+    border-color: color-mix(in srgb, var(--color-line) 60%, var(--color-ink));
+  }
+  /* The one main action on a screen. */
+  .btn-accent {
+    @apply border-accent bg-accent text-white;
+  }
+  .btn-accent:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-accent) 88%, black);
+    border-color: transparent;
   }
   .btn-dark {
-    @apply bg-ink text-white shadow-none;
+    @apply border-ink bg-ink text-on-ink;
   }
   .btn-dark:hover:not(:disabled) {
-    background: #2c2c34;
-    box-shadow: none;
-  }
-  .btn-accent {
-    @apply bg-accent text-white;
-    box-shadow: 0 6px 16px -6px rgba(81, 70, 229, 0.6);
+    background: color-mix(in srgb, var(--color-ink) 85%, var(--color-surface));
+    border-color: transparent;
   }
   .btn-ghost {
-    @apply bg-transparent text-ink-2 shadow-none;
+    @apply border-transparent bg-transparent text-ink-2;
   }
   .btn-ghost:hover:not(:disabled) {
-    background: rgba(23, 23, 28, 0.05);
-    box-shadow: none;
+    background: var(--color-soft);
+    border-color: transparent;
   }
   .btn-sm {
-    @apply rounded-[8px] px-[10px] py-[5px] text-[12px];
+    @apply h-8 rounded-[8px] px-[11px] text-[13px];
+  }
+  .btn-lg {
+    @apply h-11 px-[18px] text-[14px];
   }
   .icon-btn {
-    @apply grid h-[30px] w-[30px] place-items-center rounded-[8px] text-ink-2;
+    @apply grid h-9 w-9 place-items-center rounded-[8px] text-muted transition-colors;
   }
   .icon-btn:hover,
   .icon-btn[data-on="true"] {
-    background: rgba(23, 23, 28, 0.06);
+    background: var(--color-soft);
+    color: var(--color-ink);
   }
   .seg {
-    @apply inline-flex rounded-[9px] p-[2px];
-    background: rgba(23, 23, 28, 0.055);
+    @apply inline-flex gap-[2px] rounded-[9px] bg-soft p-[3px];
   }
   .seg > button {
-    @apply rounded-[7px] px-[11px] py-[4px] text-[12px] font-medium text-ink-2;
+    @apply inline-flex h-[28px] items-center gap-1.5 rounded-[7px] px-[11px] text-[13px] font-medium text-muted;
   }
   .seg > button[data-on="true"] {
-    @apply bg-surface text-ink shadow-1;
+    @apply bg-surface text-ink;
+    box-shadow: var(--shadow-1), 0 0 0 1px var(--color-line);
+  }
+  /* Underlined tab strip, Apollo's one way to switch views. */
+  .tabs {
+    @apply flex gap-5 border-b border-line;
+  }
+  .tabs > button {
+    @apply -mb-px border-b-2 border-transparent pt-2.5 pb-[9px] text-[13.5px] font-medium text-muted;
+  }
+  .tabs > button[data-on="true"] {
+    @apply border-accent text-ink;
   }
   .chip {
-    @apply rounded-[5px] px-[7px] py-[2px] font-mono text-[10.5px] font-medium;
+    @apply rounded-[6px] px-[7px] py-[2px] font-mono text-[11px] font-medium;
+  }
+  .tag {
+    @apply inline-flex h-[22px] items-center gap-1 rounded-[6px] border border-transparent px-2 text-[12px] font-medium whitespace-nowrap;
   }
   .glass {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(20, 20, 26, 0.62);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     color: #fff;
+  }
+  .nav-item {
+    @apply flex h-[38px] w-full items-center gap-2.5 rounded-[10px] px-2.5 text-left text-[14px] font-medium text-ink transition-colors;
+  }
+  .nav-item svg {
+    @apply text-muted;
+  }
+  .nav-item:hover {
+    background: var(--color-surface-2);
+  }
+  .nav-item[data-on="true"] {
+    @apply bg-accent-soft text-accent-ink;
+  }
+  .nav-item[data-on="true"] svg {
+    @apply text-accent-ink;
   }
 }
 
@@ -159,12 +255,17 @@ button:disabled {
   border-right-color: transparent;
   animation: spin 0.9s linear infinite;
 }
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
+}
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(23, 23, 28, 0.12);
+  background: color-mix(in srgb, var(--color-ink) 16%, transparent);
   border-radius: 10px;
   border: 3px solid transparent;
   background-clip: padding-box;

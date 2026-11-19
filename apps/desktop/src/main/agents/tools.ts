@@ -11,6 +11,8 @@ import { video } from "../video/renderer";
 /** Live state the tools can read for a project. */
 interface ToolContext {
   selection?: Selection;
+  /** Shows the questions in the chat and waits for the teacher's answers (null: skipped). */
+  ask?: (req: { intro?: string; questions: { question: string; options: string[]; multi?: boolean }[] }) => Promise<string[] | null>;
   onPreviewUpdated: () => void;
   onStep: (label: string, detail?: string) => void;
 }
@@ -131,6 +133,35 @@ function createServer(projectId: string): McpServer {
     },
   );
 
+  server.registerTool(
+    "ask_teacher",
+    {
+      title: "Ask the teacher",
+      description:
+        "Ask the teacher 1-4 short multiple-choice questions in the chat and wait for the answers. Each question gets 2-5 concrete options tailored to this topic; the teacher can also type their own answer. Use it when a guided start is requested, or when a choice genuinely changes what you build. Never ask about code.",
+      inputSchema: {
+        intro: z.string().max(120).optional().describe('One short line above the questions, e.g. "A few quick questions before I start".'),
+        questions: z
+          .array(
+            z.object({
+              question: z.string().max(160),
+              options: z.array(z.string().max(80)).min(2).max(5),
+              multi: z.boolean().optional().describe("Allow picking several options."),
+            }),
+          )
+          .min(1)
+          .max(4),
+      },
+    },
+    async ({ intro, questions }) => {
+      const ask = ctx()?.ask;
+      if (!ask) return text("The teacher isn't available right now. Use your best judgement.");
+      const answers = await ask({ intro, questions });
+      if (!answers) return text("The teacher skipped the questions. Use your best judgement and mention your choices briefly.");
+      return text(questions.map((q, i) => `${q.question}\n→ ${answers[i] || "(no answer: your choice)"}`).join("\n\n"));
+    },
+  );
+
   return server;
 }
 
@@ -185,4 +216,4 @@ export function toolServerUrl(projectId: string): string {
   return `${baseUrl}/mcp/${projectId}/${token}`;
 }
 
-export const STUDIO_TOOL_NAMES = ["render_preview", "get_console", "get_frames", "get_selection"];
+export const STUDIO_TOOL_NAMES = ["render_preview", "get_console", "get_frames", "get_selection", "ask_teacher"];

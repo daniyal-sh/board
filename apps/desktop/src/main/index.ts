@@ -1,27 +1,25 @@
 import "./early-env";
 import fs from "node:fs";
 import { join } from "node:path";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, shell } from "electron";
-import { BRAND, IPC, type AgentEvent, type AgentProviderId, type AgentSettings, type ApprovalDecision, type CreateProjectInput, type PublishRequest, type Selection, type Visibility } from "@studio/shared";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell } from "electron";
+import { BRAND, DEFAULT_ACCESS, IPC, type AgentEvent, type AgentProviderId, type AgentSettings, type ApprovalDecision, type CreateProjectInput, type Selection } from "@studio/shared";
 import { providerStatus } from "./agents/detect";
 import { agentDefaults, providerModels, setAgentDefaults } from "./agents/models";
 import { interruptAgent, sendToAgent, stopAllAgents } from "./agents/manager";
 import { disposeAllCodex } from "./agents/codex";
-import { resetAlways, respond as respondApproval } from "./agents/approvals";
+import { answerQuestions, resetAlways, respond as respondApproval } from "./agents/approvals";
 import { setSelection, startToolServer } from "./agents/tools";
-import { buildExport, buildPreview, handlePreviewProtocol, webSceneThumbnails, registerPreviewScheme, PREVIEW_SCHEME } from "./build/preview";
+import { buildExport, buildPreview, handlePreviewProtocol, webGif, webSceneThumbnails, registerPreviewScheme, PREVIEW_SCHEME } from "./build/preview";
 import { listHistory, restoreTo, undoLast } from "./history";
 import { ensureLabKit, paths } from "./paths";
 import { projects } from "./projects";
-import * as cloud from "./publish";
+import { exportFinalVideo, exportVideoGif } from "./video/export";
 import { setupVideoEnv, videoEnvStatus, manimEnv, runtime } from "./video/env";
 import { video } from "./video/renderer";
 import * as voice from "./voice";
 import { autoNarrate, retimeScene } from "./narrate";
-import { spawn } from "node:child_process";
 
 registerPreviewScheme();
-app.setName(BRAND.name);
 
 let win: BrowserWindow | null = null;
 
@@ -31,7 +29,9 @@ function createWindow(): void {
     height: 880,
     minWidth: 1024,
     minHeight: 680,
-    backgroundColor: "#F3F1EC",
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#151517" : "#F3F3F5",
+    // Packaged builds take the icon from the executable; this covers development and Linux.
+    icon: join(app.getAppPath(), "build", "icon.png"),
     title: BRAND.name,
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
     autoHideMenuBar: true,
@@ -79,10 +79,11 @@ function registerIpc(): void {
   handle(IPC.agentModels, (provider: AgentProviderId, refresh?: boolean) => providerModels(provider, refresh));
   handle(IPC.agentSettings, (id: string, settings: AgentSettings) => {
     const m = projects.manifest(id);
-    if ((m.agent.access ?? "ask") !== (settings.access ?? "ask")) resetAlways(id);
+    if ((m.agent.access ?? DEFAULT_ACCESS) !== (settings.access ?? DEFAULT_ACCESS)) resetAlways(id);
     // A thread belongs to one provider; switching providers starts a fresh conversation there.
     projects.saveManifest({ ...m, agent: settings });
   });
+  handle(IPC.agentAnswer, (_id: string, requestId: string, answers: string[] | null) => answerQuestions(requestId, answers, emit));
   handle(IPC.agentApproval, (_id: string, requestId: string, decision: ApprovalDecision) => respondApproval(requestId, decision, emit));
   handle(IPC.agentDefaults, () => agentDefaults());
   handle(IPC.agentSetDefaults, (settings: AgentSettings) => setAgentDefaults(settings));
@@ -102,7 +103,7 @@ function registerIpc(): void {
     emit({ type: "preview.updated", projectId: id });
     return r;
   });
-  handle(IPC.voiceAuto, (id: string, opts: { voice: string; speed: number }) =>
+  handle(IPC.voiceAuto, (id: string, opts: { voice: string; speed: number; scriptsReady?: boolean }) =>
     autoNarrate(id, opts, emit, (m) => win?.webContents.send(IPC.voiceProgress, m)),
   );
 
@@ -145,35 +146,35 @@ function registerIpc(): void {
   handle(IPC.videoTimeline, (id: string, sceneId: string) => video.timeline(id, sceneId) ?? null);
   handle(IPC.videoFull, (id: string) => video.fullPreview(id, (m) => win?.webContents.send(IPC.videoProgress, m)));
   handle(IPC.videoExport, async (id: string) => {
-    const m = projects.manifest(id);
     const res = await dialog.showSaveDialog(win!, {
       title: "Export video",
       defaultPath: join(app.getPath("videos"), `${projects.dir(id).split(/[\\/]/).pop()}.mp4`),
       filters: [{ name: "MP4 video", extensions: ["mp4"] }],
     });
     if (res.canceled || !res.filePath) return null;
-    const files: string[] = [];
-    const captionParts: { sceneId: string; offset: number; projectId: string }[] = [];
-    let offset = 0;
-    for (const s of m.scenes) {
-      const r = await video.renderFinal(id, s.id);
-      if (!r.ok) throw new Error(`Scene "${s.title}" failed to render:\n${r.log}`);
-      files.push(join(projects.dir(id), "build", "final", `${s.id}.mp4`));
-      captionParts.push({ sceneId: s.id, offset, projectId: id });
-      offset += r.durationSec ?? 0;
-    }
-    await new Promise<void>((resolve, reject) => {
-      const child = spawn(runtime.python, ["-m", "studio_manim.concat", res.filePath!, ...files], { env: manimEnv(), windowsHide: true });
-      let err = "";
-      child.stderr.on("data", (d) => (err += d));
-      child.on("close", (code) => (code === 0 ? resolve() : reject(new Error(err || "Could not join the scenes"))));
-    });
-    // Captions next to the video, for YouTube or an LMS player.
-    const srt = voice.buildSrt(captionParts);
-    if (srt.trim()) fs.writeFileSync(res.filePath.replace(/\.mp4$/i, "") + ".srt", srt);
+    await exportFinalVideo(id, res.filePath, true);
     return { path: res.filePath };
   });
 
+  handle(IPC.exportGif, async (id: string) => {
+    const m = projects.manifest(id);
+    const vertical = m.aspect === "vertical";
+    const res = await dialog.showSaveDialog(win!, {
+      title: "Export GIF",
+      defaultPath: join(app.getPath(m.kind === "video" ? "videos" : "downloads"), `${projects.dir(id).split(/[\\/]/).pop()}.gif`),
+      filters: [{ name: "GIF animation", extensions: ["gif"] }],
+    });
+    if (res.canceled || !res.filePath) return null;
+    // Small enough to drop into slides, an LMS page or a chat.
+    const width = vertical ? 360 : 640;
+    if (m.kind === "video") {
+      await exportVideoGif(id, res.filePath, width);
+    } else if (m.kind === "web") {
+      await buildPreview(id);
+      await webGif(id, res.filePath, { width, height: Math.round(vertical ? width * 16 / 9 : width * 9 / 16), fps: 15 });
+    } else throw new Error("Labs are interactive pages; export them as HTML instead.");
+    return { path: res.filePath, sizeBytes: fs.statSync(res.filePath).size };
+  });
   handle(IPC.voiceList, () => voice.VOICES);
   handle(IPC.voiceScript, (id: string, scene: string) => voice.readScript(id, scene));
   handle(IPC.voiceSaveScript, (id: string, scene: string, text: string) => voice.writeScript(id, scene, text));
@@ -197,12 +198,6 @@ function registerIpc(): void {
     await afterNarration(id, scene, () => {});
   });
 
-  handle(IPC.publishAccount, () => cloud.account());
-  handle(IPC.publishSignIn, () => cloud.signIn());
-  handle(IPC.publishSignOut, () => cloud.signOut());
-  handle(IPC.publishPublish, (req: PublishRequest) => cloud.publish(req));
-  handle(IPC.publishVisibility, (id: string, v: Visibility) => cloud.setVisibility(id, v));
-  handle(IPC.publishUnpublish, (id: string) => cloud.unpublish(id));
 }
 
 app.whenReady().then(async () => {
@@ -216,10 +211,6 @@ app.whenReady().then(async () => {
     return;
   }
   createWindow();
-  if (app.isPackaged) {
-    const { autoUpdater } = await import("electron-updater");
-    autoUpdater.checkForUpdatesAndNotify().catch(() => {});
-  }
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

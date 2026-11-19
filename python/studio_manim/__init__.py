@@ -20,6 +20,12 @@ from typing import Any
 
 from manim import DL, UR, Animation, Mobject, Scene, config
 
+# Vertical (9:16) projects: Manim keeps the frame 14.2 units wide whatever the pixel size, which
+# would make a portrait frame 25 units tall. Keep the familiar height of 8 instead (4.5 wide).
+if os.environ.get("STUDIO_ASPECT") == "vertical":
+    config.frame_height = 8.0
+    config.frame_width = 8.0 * config.pixel_width / config.pixel_height
+
 __all__ = ["StudioScene"]
 
 _DEFAULT_MARK_WAIT = 0.5

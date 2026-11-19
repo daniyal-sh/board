@@ -9,6 +9,13 @@ export const PROJECT_KINDS: Record<ProjectKind, { label: string; engine: string;
 
 export type ProjectLength = "short" | "explainer" | "lesson";
 
+/** Frame shape for videos and web animations. */
+export type Aspect = "landscape" | "vertical";
+export const ASPECTS: Record<Aspect, { label: string; ratio: number; css: string }> = {
+  landscape: { label: "16:9", ratio: 16 / 9, css: "16 / 9" },
+  vertical: { label: "9:16", ratio: 9 / 16, css: "9 / 16" },
+};
+
 export type AgentProviderId = "claude" | "codex";
 
 /** Which assistant runs a project, and how. Unset fields use the provider's own defaults. */
@@ -30,6 +37,8 @@ export interface AgentSettings {
  * - full: no limits
  */
 export type AccessLevel = "ask" | "auto" | "full";
+/** New projects run commands and use the web inside the project folder without asking. */
+export const DEFAULT_ACCESS: AccessLevel = "auto";
 
 /** A model a provider offers, as reported by the installed CLI. */
 export interface ModelOption {
@@ -64,14 +73,6 @@ export interface SceneMeta {
   thumbUrl?: string;
 }
 
-export type Visibility = "private" | "unlisted" | "public";
-
-export interface PublishInfo {
-  id: string;
-  url: string;
-  visibility: Visibility;
-  publishedAt: string;
-}
 
 /** Contents of project.json. */
 export interface ProjectManifest {
@@ -82,6 +83,8 @@ export interface ProjectManifest {
   /** The title was guessed from the first prompt; replace it once the content has a real one. */
   titleAuto?: boolean;
   length: ProjectLength;
+  /** Videos and web animations. Unset means landscape. */
+  aspect?: Aspect;
   /** Free-text audience, e.g. "Grade 11". */
   audience?: string;
   createdAt: string;
@@ -90,7 +93,6 @@ export interface ProjectManifest {
   agent: AgentSettings;
   /** Narration voice settings (AI voice). */
   voice?: { voice: string; speed: number };
-  publish?: PublishInfo;
 }
 
 export interface VoiceOption {
@@ -119,7 +121,8 @@ export interface ProjectSummary {
   title: string;
   updatedAt: string;
   dir: string;
-  publish?: PublishInfo;
+  aspect?: Aspect;
+  sceneCount?: number;
   /** Screenshot of the latest preview, when there is one. */
   thumbUrl?: string;
 }

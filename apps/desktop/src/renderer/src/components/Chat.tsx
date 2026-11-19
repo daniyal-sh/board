@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { AgentSettings, ApprovalDecision, ApprovalRequest, ChatTurn, ProviderStatus, Selection } from "@studio/shared";
+import type { AgentSettings, ApprovalDecision, ApprovalRequest, ChatTurn, ProviderStatus, QuestionRequest, Selection } from "@studio/shared";
 import { studio } from "../lib/api";
 import { ArrowUp, Check, Stop, Undo } from "./Icons";
 import { Markdown } from "./Markdown";
@@ -97,9 +97,9 @@ function ApprovalCard(props: { projectId: string; approval: ApprovalRequest & { 
     );
   }
   return (
-    <div className="my-2 rounded-xl bg-surface p-3 shadow-[0_0_0_1.5px_var(--color-accent),var(--shadow-1)] animate-in">
+    <div className="my-2 rounded-xl border border-line bg-surface p-3 shadow-1 animate-in">
       <div className="flex items-center gap-2 text-[12.5px] font-semibold text-ink">
-        <span className="grid h-5 w-5 place-items-center rounded-md bg-accent-soft text-[11px] text-accent">?</span>
+        <span className="grid h-5 w-5 place-items-center rounded-md bg-assistant-soft text-[11px] text-assistant">?</span>
         {a.title}?
       </div>
       {a.reason && <p className="mb-0 mt-1.5 text-[12px] text-ink-2">{a.reason}</p>}
@@ -114,6 +114,99 @@ function ApprovalCard(props: { projectId: string; approval: ApprovalRequest & { 
         <span className="flex-1" />
         <button className="btn btn-ghost btn-sm" onClick={() => answer("deny")}>
           Deny
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** The assistant's multiple-choice questions: click an option (or type one), then continue. */
+function QuestionCard(props: { projectId: string; request: QuestionRequest & { resolved?: boolean; answers?: string[] | null } }) {
+  const q = props.request;
+  const [picked, setPicked] = useState<string[][]>(() => q.questions.map(() => []));
+  const [other, setOther] = useState<string[]>(() => q.questions.map(() => ""));
+  const answers = q.questions.map((_, i) => [...picked[i], other[i].trim()].filter(Boolean).join(", "));
+  const submit = (a: string[] | null) => void studio.agents.answerQuestions(props.projectId, q.requestId, a);
+
+  if (q.resolved) {
+    return (
+      <div className="my-1.5 rounded-lg bg-surface-2 px-2.5 py-2 text-[12px]">
+        {q.answers ? (
+          q.questions.map((x, i) => (
+            <div key={i} className="flex gap-1.5 leading-snug">
+              <span className="text-muted">{x.question}</span>
+              <b className="font-medium text-ink">{q.answers![i] || "your call"}</b>
+            </div>
+          ))
+        ) : (
+          <span className="text-muted">Questions skipped: the assistant chose for you.</span>
+        )}
+      </div>
+    );
+  }
+
+  const toggle = (qi: number, opt: string) =>
+    setPicked((p) =>
+      p.map((sel, i) => {
+        if (i !== qi) return sel;
+        if (q.questions[qi].multi) return sel.includes(opt) ? sel.filter((o) => o !== opt) : [...sel, opt];
+        return sel[0] === opt ? [] : [opt];
+      }),
+    );
+
+  return (
+    <div className="my-2 rounded-xl border border-assistant-line bg-assistant-soft p-3 animate-in">
+      <div className="mb-2 text-[12.5px] font-semibold text-ink">{q.intro || "A few quick questions"}</div>
+      <div className="grid gap-3">
+        {q.questions.map((x, qi) => (
+          <div key={qi}>
+            <div className="mb-1.5 text-[12.5px] text-ink-2">
+              {x.question}
+              {x.multi && <span className="ml-1 text-[11px] text-muted">(pick any)</span>}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {x.options.map((o) => {
+                const on = picked[qi].includes(o);
+                return (
+                  <button
+                    key={o}
+                    onClick={() => {
+                      toggle(qi, o);
+                      if (!x.multi) setOther((v) => v.map((t, i) => (i === qi ? "" : t)));
+                    }}
+                    className="rounded-full px-2.5 py-1 text-[12px] transition"
+                    style={
+                      on
+                        ? { background: "var(--color-ink)", color: "var(--color-on-ink)" }
+                        : { background: "var(--color-surface-2)", color: "var(--color-ink-2)", boxShadow: "inset 0 0 0 1px var(--color-line)" }
+                    }
+                  >
+                    {o}
+                  </button>
+                );
+              })}
+              <input
+                value={other[qi]}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setOther((o) => o.map((t, i) => (i === qi ? v : t)));
+                  if (!x.multi && v) setPicked((p) => p.map((sel, i) => (i === qi ? [] : sel)));
+                }}
+                placeholder="Something else…"
+                className="min-w-[120px] flex-1 rounded-full bg-transparent px-2.5 py-1 text-[12px] outline-none shadow-[inset_0_0_0_1px_var(--color-line)] placeholder:text-faint focus:shadow-[inset_0_0_0_1.5px_var(--color-accent)]"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center gap-1.5">
+        <button className="btn btn-dark btn-sm" onClick={() => submit(answers)}>
+          Continue
+        </button>
+        <span className="text-[11.5px] text-muted">{answers.some((a) => !a) ? "Unanswered ones are left to the assistant" : ""}</span>
+        <span className="flex-1" />
+        <button className="btn btn-ghost btn-sm" onClick={() => submit(null)}>
+          Skip
         </button>
       </div>
     </div>
@@ -188,19 +281,25 @@ export function Chat(props: {
   }
 
   return (
-    <aside className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-white/40">
-      <div className="flex items-center gap-2 px-4 pb-2 pt-3">
-        {props.narration ? (
-          <div className="seg">
-            <button data-on={tab === "chat"} onClick={() => setTab("chat")}>
-              Assistant
-            </button>
+    <aside className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] border-l border-line bg-surface">
+      <div>
+        <div className="tabs px-4">
+          <button data-on={tab === "chat"} onClick={() => setTab("chat")}>
+            Chat
+          </button>
+          {props.narration && (
             <button data-on={tab === "narration"} onClick={() => setTab("narration")}>
               Narration
             </button>
+          )}
+        </div>
+        {tab === "chat" && (
+          <div className="flex items-center gap-1.5 px-4 pt-2.5 text-[12px] text-muted">
+            <i className="h-2 w-2 flex-none rounded-full bg-assistant" />
+            <span className="truncate">
+              Can see: {props.selection ? `${props.selection.part} (selected)` : props.sceneLabel ? props.sceneLabel.replace(/^Scene: /, "scene “") + "”" : "the whole project"}
+            </span>
           </div>
-        ) : (
-          <h3 className="serif m-0 text-[21px]">Assistant</h3>
         )}
       </div>
 
@@ -215,12 +314,15 @@ export function Chat(props: {
           )}
           {props.turns.map((t) => (
             <div key={t.turnId} className="flex flex-col gap-1 animate-in">
-              <div className="max-w-[90%] self-end rounded-[14px_14px_4px_14px] bg-ink px-3 py-2 text-[13px] text-white">
-                {t.selection && <span className="mr-1 inline-block rounded bg-white/15 px-1.5 font-mono text-[10.5px]">{t.selection.part}</span>}
+              <div className="max-w-[90%] self-end rounded-[12px_12px_4px_12px] bg-soft px-3 py-2 text-[13.5px] text-ink">
+                {t.selection && <span className="mr-1 inline-block rounded bg-[#FFF7D1] px-1.5 font-mono text-[#7A6200] text-[10.5px]">{t.selection.part}</span>}
                 {t.text}
               </div>
               <div className="text-[13px] text-ink-2">
                 <Activity turn={t} />
+                {t.questions?.map((q) => (
+                  <QuestionCard key={q.requestId} projectId={props.projectId} request={q} />
+                ))}
                 {t.approvals?.map((a) => (
                   <ApprovalCard key={a.requestId} projectId={props.projectId} approval={a} />
                 ))}
@@ -250,21 +352,21 @@ export function Chat(props: {
             {undone ? (
               <>
                 <span className="min-w-0 flex-1 truncate">Undid “{undone.message}”</span>
-                <button className="rounded-md px-2 py-0.5 font-medium text-ink-2 hover:bg-black/5" disabled={undoBusy} onClick={() => void redo()}>
+                <button className="rounded-md px-2 py-0.5 font-medium text-ink-2 hover:bg-soft" disabled={undoBusy} onClick={() => void redo()}>
                   Redo
                 </button>
               </>
             ) : (
               <>
                 <span className="flex-1" />
-                <button className="flex items-center gap-1.5 rounded-md px-2 py-0.5 font-medium text-ink-2 hover:bg-black/5" disabled={undoBusy} onClick={() => void undo()}>
+                <button className="flex items-center gap-1.5 rounded-md px-2 py-0.5 font-medium text-ink-2 hover:bg-soft" disabled={undoBusy} onClick={() => void undo()}>
                   <Undo size={13} /> Undo last change
                 </button>
               </>
             )}
           </div>
         )}
-        <div className="rounded-[14px] bg-surface p-2.5 pb-1.5 shadow-2">
+        <div className="rounded-[12px] border border-line bg-surface p-2.5 pb-1.5 shadow-1 focus-within:border-accent">
           {(props.selection || props.sceneLabel) && (
             <div className="mb-1 flex flex-wrap gap-1.5">
               {props.selection ? (
@@ -276,7 +378,7 @@ export function Chat(props: {
                   </button>
                 </span>
               ) : (
-                <span className="chip bg-accent-soft text-accent">{props.sceneLabel}</span>
+                <span className="chip bg-accent-soft text-accent-ink">{props.sceneLabel}</span>
               )}
             </div>
           )}
@@ -292,7 +394,7 @@ export function Chat(props: {
             }}
             rows={2}
             placeholder={props.busy ? "Working… you can type your next request" : props.selection ? `What should change about ${props.selection.part}?` : "Describe a change…"}
-            className="w-full resize-none bg-transparent px-0.5 text-[13px] outline-none placeholder:text-faint"
+            className="w-full resize-none bg-transparent px-0.5 text-[13.5px] outline-none placeholder:text-faint"
           />
           <div className="flex items-end gap-1">
             <div className="min-w-0 flex-1">
@@ -310,7 +412,7 @@ export function Chat(props: {
                 <Stop />
               </button>
             ) : (
-              <button className="grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] bg-ink text-white disabled:opacity-30" disabled={!text.trim()} onClick={submit} title="Send (Enter)">
+              <button className="grid h-[30px] w-[30px] flex-none place-items-center rounded-[8px] bg-accent text-white disabled:opacity-30" disabled={!text.trim()} onClick={submit} title="Send (Enter)">
                 <ArrowUp size={14} />
               </button>
             )}

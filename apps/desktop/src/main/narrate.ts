@@ -20,7 +20,7 @@ export async function retimeScene(id: string, scene: string, progress: (m: strin
  * One-click narration: the assistant writes a script with cues for every scene (and adds the
  * matching waits to the scenes), then each scene gets an AI voice and is re-timed to it.
  */
-export async function autoNarrate(id: string, opts: { voice: string; speed: number }, emitEvent: (e: AgentEvent) => void, progress: (m: string) => void): Promise<{ voiced: string[]; failed: { sceneId: string; error: string }[] }> {
+export async function autoNarrate(id: string, opts: { voice: string; speed: number; scriptsReady?: boolean }, emitEvent: (e: AgentEvent) => void, progress: (m: string) => void): Promise<{ voiced: string[]; failed: { sceneId: string; error: string }[] }> {
   const m = projects.manifest(id);
   const wait = (fn: (e: AgentEvent) => void) => {
     let done!: (e: AgentEvent) => void;
@@ -33,24 +33,27 @@ export async function autoNarrate(id: string, opts: { voice: string; speed: numb
       },
     };
   };
-  const w = wait(emitEvent);
-  progress("The assistant is writing the narration…");
-  await sendToAgent(
-    {
-      projectId: id,
-      text:
-        "Write narration for every scene: one natural script per scene in narration/<scene>.md, matched to the level of the class. " +
-        "Put {{mark:name}} cues before the words where animations should start, and add the matching wait calls in each scene (" +
-        (m.kind === "video" ? "self.wait_until(\"name\")" : "await scene.waitUntil(\"name\")") +
-        "). Keep the animations themselves as they are.",
-    },
-    w.emit,
-  );
-  const result = await w.finished;
-  if (result.type === "turn.failed") throw new Error(result.error);
+  // A project started from a script already has its scripts and cues.
+  if (!opts.scriptsReady) {
+    const w = wait(emitEvent);
+    progress("The assistant is writing the narration…");
+    await sendToAgent(
+      {
+        projectId: id,
+        text:
+          "Write narration for every scene: one natural script per scene in narration/<scene>.md, matched to the level of the class. " +
+          "Put {{mark:name}} cues before the words where animations should start, and add the matching wait calls in each scene (" +
+          (m.kind === "video" ? "self.wait_until(\"name\")" : "await scene.waitUntil(\"name\")") +
+          "). Keep the animations themselves as they are.",
+      },
+      w.emit,
+    );
+    const result = await w.finished;
+    if (result.type === "turn.failed") throw new Error(result.error);
+  }
   const voiced: string[] = [];
   const failed: { sceneId: string; error: string }[] = [];
-  projects.saveManifest({ ...projects.manifest(id), voice: opts });
+  projects.saveManifest({ ...projects.manifest(id), voice: { voice: opts.voice, speed: opts.speed } });
   const scenes = projects.manifest(id).scenes.filter((s) => voice.readScript(id, s.id).trim());
   for (const [i, s] of scenes.entries()) {
     try {

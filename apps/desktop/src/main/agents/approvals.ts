@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { AgentEvent, ApprovalDecision, ApprovalKind, ApprovalRequest } from "@studio/shared";
+import type { AgentEvent, ApprovalDecision, ApprovalKind, ApprovalRequest, QuestionRequest } from "@studio/shared";
 
 /**
  * Approval cards. A driver asks; the teacher answers in the chat; the driver's promise resolves.
@@ -53,4 +53,44 @@ export function denyOpen(projectId: string, turnId: string, emit: (e: AgentEvent
 /** Changing the access level resets remembered "always allow" answers. */
 export function resetAlways(projectId: string): void {
   alwaysAllowed.delete(projectId);
+}
+
+// ---------------------------------------------------------------- questions
+
+/**
+ * Multiple-choice questions from the assistant (the ask_teacher tool). The tool call waits until
+ * the teacher answers or skips; a stopped turn counts as skipped.
+ */
+interface OpenQuestion {
+  projectId: string;
+  turnId: string;
+  resolve: (answers: string[] | null) => void;
+}
+const openQuestions = new Map<string, OpenQuestion>();
+
+export type Asker = (req: Omit<QuestionRequest, "requestId">) => Promise<string[] | null>;
+
+export function makeAsker(projectId: string, turnId: string, emit: (e: AgentEvent) => void, signal: AbortSignal): Asker {
+  return (req) => {
+    if (signal.aborted) return Promise.resolve(null);
+    const request: QuestionRequest = { ...req, requestId: randomUUID() };
+    return new Promise((resolve) => {
+      openQuestions.set(request.requestId, { projectId, turnId, resolve });
+      emit({ type: "question", projectId, turnId, request });
+      signal.addEventListener("abort", () => answerQuestions(request.requestId, null, emit), { once: true });
+    });
+  };
+}
+
+export function answerQuestions(requestId: string, answers: string[] | null, emit: (e: AgentEvent) => void): void {
+  const q = openQuestions.get(requestId);
+  if (!q) return;
+  openQuestions.delete(requestId);
+  emit({ type: "question.resolved", projectId: q.projectId, turnId: q.turnId, requestId, answers });
+  q.resolve(answers);
+}
+
+/** Skip anything still open when a turn ends. */
+export function skipOpenQuestions(projectId: string, turnId: string, emit: (e: AgentEvent) => void): void {
+  for (const [id, q] of openQuestions) if (q.projectId === projectId && q.turnId === turnId) answerQuestions(id, null, emit);
 }
