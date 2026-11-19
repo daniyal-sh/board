@@ -1,0 +1,13 @@
+node_modules/
+dist/
+out/
+release/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+__pycache__/
+*.egg-info/
+.venv/
+apps/desktop/build/lab-kit/
+apps/desktop/build/lab-kit.tgz

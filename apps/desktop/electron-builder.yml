@@ -1,0 +1,47 @@
+appId: org.studio.app
+productName: Studio
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  # Studio drives the teacher's own installed `claude`, so the SDK's bundled CLI binary isn't needed.
+  - "!node_modules/@anthropic-ai/claude-agent-sdk-*/**"
+asarUnpack:
+  - node_modules/@anthropic-ai/claude-agent-sdk/**
+  - node_modules/esbuild/**
+  - node_modules/@esbuild/**
+  - node_modules/onnxruntime-node/**
+extraResources:
+  # Flat copy made by scripts/vendor-lab-kit.mjs (pnpm's symlinked layout can't be shipped as-is).
+  - from: build/lab-kit.tgz
+    to: lab-kit.tgz
+  - from: ../../packages/agent-kit/guides
+    to: guides
+  - from: ../../python
+    to: python
+protocols:
+  - name: Studio
+    schemes: [studio]
+publish:
+  provider: github
+win:
+  target: [nsis]
+  files:
+    - "!node_modules/onnxruntime-node/bin/napi-v3/{darwin,linux}/**"
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target: [dmg, zip]
+  files:
+    - "!node_modules/onnxruntime-node/bin/napi-v3/{win32,linux}/**"
+  category: public.app-category.education
+  extendInfo:
+    NSMicrophoneUsageDescription: Studio records your voice for narration. Recordings stay on this computer.
+linux:
+  target: [AppImage, deb]
+  files:
+    - "!node_modules/onnxruntime-node/bin/napi-v3/{win32,darwin}/**"
+  category: Education

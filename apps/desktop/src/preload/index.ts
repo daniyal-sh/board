@@ -1,0 +1,69 @@
+import { contextBridge, ipcRenderer } from "electron";
+import { IPC, type AgentEvent, type StudioApi } from "@studio/shared";
+
+const invoke = (channel: string, ...args: unknown[]) => ipcRenderer.invoke(channel, ...args);
+
+function subscribe<T>(channel: string, cb: (v: T) => void): () => void {
+  const listener = (_e: unknown, v: T) => cb(v);
+  ipcRenderer.on(channel, listener);
+  return () => ipcRenderer.removeListener(channel, listener);
+}
+
+const api: StudioApi = {
+  app: {
+    info: () => invoke(IPC.appInfo),
+    openExternal: (url) => invoke(IPC.openExternal, url),
+    showInFolder: (p) => invoke(IPC.showInFolder, p),
+  },
+  agents: {
+    status: (refresh) => invoke(IPC.agentsStatus, refresh),
+    send: (req) => invoke(IPC.agentSend, req),
+    interrupt: (id) => invoke(IPC.agentInterrupt, id),
+    onEvent: (cb) => subscribe<AgentEvent>(IPC.agentEvent, cb),
+    setSelection: (id, sel) => invoke(IPC.agentSelection, id, sel),
+    setProvider: (id, p) => invoke(IPC.agentProvider, id, p),
+  },
+  projects: {
+    list: () => invoke(IPC.projectsList),
+    create: (input) => invoke(IPC.projectsCreate, input),
+    open: (id) => invoke(IPC.projectsOpen, id),
+    rename: (id, title) => invoke(IPC.projectsRename, id, title),
+    remove: (id) => invoke(IPC.projectsRemove, id),
+    history: (id) => invoke(IPC.projectsHistory, id),
+    restore: (id, entry) => invoke(IPC.projectsRestore, id, entry),
+    undo: (id) => invoke(IPC.projectsUndo, id),
+  },
+  build: {
+    preview: (id, scene) => invoke(IPC.buildPreview, id, scene),
+    exportHtml: (id) => invoke(IPC.buildExportHtml, id),
+    copyHtml: (id) => invoke(IPC.buildCopyHtml, id),
+  },
+  video: {
+    status: () => invoke(IPC.videoStatus),
+    setup: () => invoke(IPC.videoSetup),
+    onSetupProgress: (cb) => subscribe(IPC.videoSetupProgress, cb),
+    sceneUrl: (id, scene) => invoke(IPC.videoSceneUrl, id, scene),
+    timeline: (id, scene) => invoke(IPC.videoTimeline, id, scene),
+    exportMp4: (id) => invoke(IPC.videoExport, id),
+  },
+  voice: {
+    voices: () => invoke(IPC.voiceList),
+    script: (id, scene) => invoke(IPC.voiceScript, id, scene),
+    saveScript: (id, scene, text) => invoke(IPC.voiceSaveScript, id, scene, text),
+    info: (id, scene) => invoke(IPC.voiceInfo, id, scene),
+    generate: (id, scene, opts) => invoke(IPC.voiceGenerate, id, scene, opts),
+    saveRecording: (id, scene, pcm) => invoke(IPC.voiceRecording, id, scene, pcm),
+    remove: (id, scene) => invoke(IPC.voiceRemove, id, scene),
+    onProgress: (cb) => subscribe<string>(IPC.voiceProgress, cb),
+  },
+  publish: {
+    account: () => invoke(IPC.publishAccount),
+    signIn: () => invoke(IPC.publishSignIn),
+    signOut: () => invoke(IPC.publishSignOut),
+    publish: (req) => invoke(IPC.publishPublish, req),
+    setVisibility: (id, v) => invoke(IPC.publishVisibility, id, v),
+    unpublish: (id) => invoke(IPC.publishUnpublish, id),
+  },
+};
+
+contextBridge.exposeInMainWorld("studio", api);

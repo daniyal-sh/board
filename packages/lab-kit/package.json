@@ -1,0 +1,32 @@
+{
+  "name": "@studio/lab-kit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Styles, helpers and vendored libraries available to every Lab and web animation.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./math": "./src/math.ts",
+    "./lab-kit.css": "./src/lab-kit.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@observablehq/plot": "^0.6.19",
+    "d3": "^7.9.2",
+    "gsap": "^3.15.1",
+    "jsxgraph": "^1.14.3",
+    "katex": "^0.19.1",
+    "manim-web": "^0.42.0",
+    "matter-js": "^0.20.0",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/d3": "^7.4.3",
+    "@types/katex": "^0.16.8",
+    "@types/matter-js": "^0.20.2",
+    "@types/three": "^0.187.0",
+    "typescript": "^7.0.2"
+  }
+}

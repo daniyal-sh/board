@@ -1,0 +1,181 @@
+import type { AgentEvent, AgentRequest, ChatTurn, ProviderStatus, Selection } from "./agent.ts";
+
+export interface VideoEnvStatus {
+  uv: boolean;
+  python: boolean;
+  manim: boolean;
+  latex: boolean;
+  ready: boolean;
+}
+
+/** Written by the studio_manim plugin for each rendered scene. Coordinates are 0–1 of the frame. */
+export interface SceneTimeline {
+  scene: string;
+  duration: number;
+  marks: Record<string, number>;
+  plays: { kind: "play" | "wait" | "mark"; label: string; start: number; end: number; line: number | null }[];
+  parts: { name: string; type: string; line: number | null; boxes: { t: number; x0: number; y0: number; x1: number; y1: number }[] }[];
+}
+import type {
+  AgentProviderId,
+  HistoryEntry,
+  ProjectKind,
+  ProjectLength,
+  ProjectManifest,
+  ProjectSummary,
+  Visibility,
+  PublishInfo,
+  NarrationInfo,
+  VoiceOption,
+} from "./project.ts";
+
+export interface AppInfo {
+  version: string;
+  platform: string;
+  projectsDir: string;
+}
+
+export interface CreateProjectInput {
+  kind: ProjectKind;
+  prompt: string;
+  length: ProjectLength;
+  title?: string;
+  provider?: AgentProviderId;
+}
+
+export interface OpenProject {
+  manifest: ProjectManifest;
+  dir: string;
+  chat: ChatTurn[];
+}
+
+export interface BuildResult {
+  ok: boolean;
+  /** URL the preview webview should load (custom protocol). */
+  previewUrl?: string;
+  /** Size of the single-file HTML in bytes. */
+  sizeBytes?: number;
+  /** Libraries detected in the bundle, e.g. ["katex", "jsxgraph"]. */
+  libraries?: string[];
+  errors: string[];
+}
+
+export interface Account {
+  email: string;
+  name?: string;
+  picture?: string;
+}
+
+export interface PublishRequest {
+  projectId: string;
+  visibility: Visibility;
+}
+
+/** The API exposed to the renderer as `window.studio`. */
+export interface StudioApi {
+  app: {
+    info(): Promise<AppInfo>;
+    openExternal(url: string): Promise<void>;
+    showInFolder(path: string): Promise<void>;
+  };
+  agents: {
+    status(refresh?: boolean): Promise<ProviderStatus[]>;
+    send(req: AgentRequest): Promise<{ turnId: string }>;
+    interrupt(projectId: string): Promise<void>;
+    onEvent(cb: (e: AgentEvent) => void): () => void;
+    /** Tell the agent tools what the teacher has selected (or clear it). */
+    setSelection(projectId: string, selection: Selection | null): Promise<void>;
+    setProvider(projectId: string, provider: AgentProviderId): Promise<void>;
+  };
+  projects: {
+    list(): Promise<ProjectSummary[]>;
+    create(input: CreateProjectInput): Promise<OpenProject>;
+    open(id: string): Promise<OpenProject>;
+    rename(id: string, title: string): Promise<void>;
+    remove(id: string): Promise<void>;
+    history(id: string): Promise<HistoryEntry[]>;
+    restore(id: string, entryId: string): Promise<void>;
+    undo(id: string): Promise<void>;
+  };
+  build: {
+    /** Lab / web: rebuild the preview. Video: render a draft of one scene. */
+    preview(projectId: string, sceneId?: string): Promise<BuildResult>;
+    exportHtml(projectId: string): Promise<{ path: string } | null>;
+    /** Build the shareable single file and put it on the clipboard. */
+    copyHtml(projectId: string): Promise<{ sizeBytes: number }>;
+  };
+  video: {
+    status(): Promise<VideoEnvStatus>;
+    /** Installs Python, Manim and LaTeX; progress arrives through onSetupProgress. */
+    setup(): Promise<VideoEnvStatus>;
+    onSetupProgress(cb: (p: { step: string; message: string }) => void): () => void;
+    /** URL of the latest draft render for a scene, or null. */
+    sceneUrl(projectId: string, sceneId: string): Promise<string | null>;
+    timeline(projectId: string, sceneId: string): Promise<SceneTimeline | null>;
+    exportMp4(projectId: string): Promise<{ path: string } | null>;
+  };
+  voice: {
+    voices(): Promise<VoiceOption[]>;
+    script(projectId: string, sceneId: string): Promise<string>;
+    saveScript(projectId: string, sceneId: string, text: string): Promise<void>;
+    info(projectId: string, sceneId: string): Promise<NarrationInfo | null>;
+    generate(projectId: string, sceneId: string, opts: { voice: string; speed: number }): Promise<NarrationInfo>;
+    /** Raw 16 kHz mono samples of the teacher's recording. */
+    saveRecording(projectId: string, sceneId: string, pcm16k: Float32Array): Promise<NarrationInfo>;
+    remove(projectId: string, sceneId: string): Promise<void>;
+    onProgress(cb: (message: string) => void): () => void;
+  };
+  /** Optional: only needed to publish links. Everything else works without an account. */
+  publish: {
+    account(): Promise<Account | null>;
+    signIn(): Promise<Account>;
+    signOut(): Promise<void>;
+    publish(req: PublishRequest): Promise<PublishInfo>;
+    setVisibility(projectId: string, visibility: Visibility): Promise<PublishInfo>;
+    unpublish(projectId: string): Promise<void>;
+  };
+}
+
+/** IPC channel names, kept in one place so main and preload agree. */
+export const IPC = {
+  appInfo: "app:info",
+  openExternal: "app:openExternal",
+  showInFolder: "app:showInFolder",
+  agentsStatus: "agents:status",
+  agentSend: "agent:send",
+  agentInterrupt: "agent:interrupt",
+  agentEvent: "agent:event",
+  projectsList: "projects:list",
+  projectsCreate: "projects:create",
+  projectsOpen: "projects:open",
+  projectsRename: "projects:rename",
+  projectsRemove: "projects:remove",
+  projectsHistory: "projects:history",
+  projectsRestore: "projects:restore",
+  projectsUndo: "projects:undo",
+  buildPreview: "build:preview",
+  buildExportHtml: "build:exportHtml",
+  buildCopyHtml: "build:copyHtml",
+  agentSelection: "agent:selection",
+  agentProvider: "agent:provider",
+  videoStatus: "video:status",
+  videoSetup: "video:setup",
+  videoSetupProgress: "video:setupProgress",
+  videoSceneUrl: "video:sceneUrl",
+  videoTimeline: "video:timeline",
+  videoExport: "video:export",
+  voiceList: "voice:list",
+  voiceScript: "voice:script",
+  voiceSaveScript: "voice:saveScript",
+  voiceInfo: "voice:info",
+  voiceGenerate: "voice:generate",
+  voiceRecording: "voice:recording",
+  voiceRemove: "voice:remove",
+  voiceProgress: "voice:progress",
+  publishAccount: "publish:account",
+  publishSignIn: "publish:signIn",
+  publishSignOut: "publish:signOut",
+  publishPublish: "publish:publish",
+  publishVisibility: "publish:visibility",
+  publishUnpublish: "publish:unpublish",
+} as const;

@@ -1,0 +1,12 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  electron: true
+  esbuild: true
+  workerd: true
+  electron-winstaller: false
+  core-js: false
+  onnxruntime-node: true
+  protobufjs: false
+  sharp: false

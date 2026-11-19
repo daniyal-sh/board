@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manim Studio Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F3F1EC; --surface:#FFFFFF; --surface2:#FAF9F6; --ink:#17171C; --ink2:#43434D; --muted:#85838E; --faint:#B4B1BA;
+  --line:#E7E4DD; --line2:#F0EEE9; --accent:#5146E5; --accent-soft:#EFEEFD; --stage:#0E0E12;
+  --blue:#58C4DD; --yellow:#FFE14D; --coral:#F26B5B; --green:#5DB37A; --amber:#E8A33D;
+  --sh1:0 1px 2px rgba(23,23,28,.05),0 0 0 1px rgba(23,23,28,.05);
+  --sh2:0 16px 40px -16px rgba(23,23,28,.28),0 0 0 1px rgba(23,23,28,.05);
+  --serif:"Instrument Serif",Georgia,serif; --sans:Inter,system-ui,sans-serif; --mono:"JetBrains Mono",monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:13.5px/1.5 var(--sans);letter-spacing:-.006em;color:var(--ink);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+input,textarea{font:inherit;color:inherit}
+svg{display:block}
+.win{width:1180px;height:760px;background:var(--bg);border-radius:14px;overflow:hidden;display:grid;grid-template-rows:50px 1fr;box-shadow:0 0 0 1px rgba(0,0,0,.08),0 30px 80px -30px rgba(0,0,0,.35);position:relative}
+.bar{display:flex;align-items:center;gap:14px;padding:0 14px 0 16px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.5)}
+.lights{display:flex;gap:7px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.lights i:nth-child(1){background:#FF5F57}.lights i:nth-child(2){background:#FEBC2E}.lights i:nth-child(3){background:#28C840}
+.home-btn{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink2)}
+.home-btn:hover{background:rgba(23,23,28,.06)}
+.title{display:flex;align-items:center;gap:10px;font-weight:500}
+.kind{font-size:11px;font-weight:500;padding:2px 8px;border-radius:999px;background:rgba(23,23,28,.06);color:var(--ink2)}
+.sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:9px;font-weight:500;font-size:13px;background:var(--surface);box-shadow:var(--sh1)}
+.btn:hover{box-shadow:0 0 0 1px rgba(23,23,28,.16)}
+.btn.dark{background:var(--ink);color:#fff;box-shadow:none}.btn.dark:hover{background:#2c2c34}
+.btn.acc{background:var(--accent);color:#fff;box-shadow:0 6px 16px -6px rgba(81,70,229,.6)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+.btn.ghost{background:none;box-shadow:none;color:var(--ink2)}.btn.ghost:hover{background:rgba(23,23,28,.05)}
+.icon{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--ink2)}
+.icon:hover{background:rgba(23,23,28,.06)}
+.seg{display:inline-flex;background:rgba(23,23,28,.055);padding:2px;border-radius:9px}
+.seg button{padding:4px 11px;border-radius:7px;font-size:12px;color:var(--ink2);font-weight:500}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--sh1)}
+.view{display:none;min-height:0;overflow:auto;outline:none}.view.on{display:block}
+.muted{color:var(--muted)}
+.card{background:var(--surface);border-radius:14px;box-shadow:var(--sh1)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+/* home */
+.home{max-width:780px;margin:0 auto;padding:64px 24px 40px}
+.home h1{font:400 52px/1.02 var(--serif);letter-spacing:-.02em;margin:6px 0 26px}
+.home h1 em{color:var(--accent)}
+.prompt{background:var(--surface);border-radius:18px;box-shadow:var(--sh2);padding:16px 16px 12px}
+.prompt textarea{width:100%;border:0;outline:none;resize:none;font-size:16px;line-height:1.55;min-height:72px;background:none}
+.pf{display:flex;align-items:center;gap:8px;margin-top:6px}
+.make{display:flex;gap:8px;margin-top:18px}
+.mk{flex:1;display:flex;align-items:center;gap:12px;text-align:left;padding:12px;border-radius:14px;background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 1px var(--line);transition:.15s}
+.mk:hover{background:#fff}
+.mk.on{background:#fff;box-shadow:inset 0 0 0 2px var(--ink)}
+.mk .ic{width:42px;height:42px;border-radius:10px;background:var(--stage);display:grid;place-items:center;flex:none}
+.mk b{font-weight:600;display:block}.mk small{font-size:12px;color:var(--muted);line-height:1.35;display:block}
+.recent-h{display:flex;justify-content:space-between;align-items:baseline;margin:44px 0 12px}
+.recent-h h2{font:400 22px var(--serif);margin:0}
+.recents{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.rc{text-align:left}
+.rc .th{aspect-ratio:16/9;border-radius:12px;overflow:hidden;box-shadow:var(--sh1);margin-bottom:8px;position:relative;transition:.15s}
+.rc:hover .th{transform:translateY(-2px);box-shadow:var(--sh2)}
+.rc .th svg{width:100%;height:100%}
+.rc .tag{position:absolute;left:8px;top:8px;font-size:10.5px;font-weight:500;padding:2px 7px;border-radius:6px;background:rgba(255,255,255,.9);color:var(--ink)}
+.rc b{font-weight:500;display:block}.rc span{font-size:12px;color:var(--muted)}
+/* studio */
+.studio{display:grid;grid-template-columns:184px 1fr 320px;height:100%}
+.scenes{padding:14px 10px 14px 14px;overflow:auto;border-right:1px solid var(--line)}
+.scenes h3{font:400 19px var(--serif);margin:0 4px 10px}
+.sc{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:6px;border-radius:10px;margin-bottom:4px}
+.sc:hover{background:rgba(23,23,28,.04)}
+.sc.on{background:var(--surface);box-shadow:var(--sh1)}
+.sc .th{width:58px;aspect-ratio:16/9;border-radius:6px;background:var(--stage);overflow:hidden;flex:none}
+.sc.on .th{box-shadow:0 0 0 2px var(--accent)}
+.sc .th svg{width:100%;height:100%}
+.sc b{font-weight:500;font-size:12.5px;display:block;line-height:1.3}
+.sc small{font:10.5px var(--mono);color:var(--muted);display:flex;align-items:center;gap:5px}
+.sc small i{width:5px;height:5px;border-radius:50%;display:block}
+.add{width:100%;border-radius:10px;color:var(--muted);font-size:12.5px;text-align:left;padding:8px 12px}
+.add:hover{color:var(--ink)}
+.center{display:grid;grid-template-rows:1fr auto;min-width:0;min-height:0;padding:16px 18px;gap:14px}
+.stagewrap{min-height:0;display:flex;align-items:center;justify-content:center}
+.stage{position:relative;width:100%;max-height:100%;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:var(--stage);box-shadow:0 18px 40px -20px rgba(0,0,0,.6)}
+.stage canvas{width:100%;height:100%;display:block;cursor:crosshair}
+.glass{background:rgba(255,255,255,.1);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:8px}
+.hint{position:absolute;right:12px;top:12px;font-size:11px;padding:4px 9px;color:rgba(255,255,255,.85)}
+.ctl{position:absolute;left:12px;right:12px;bottom:12px;display:flex;align-items:center;gap:12px;padding:6px 12px 6px 6px;border-radius:11px}
+.play{width:28px;height:28px;border-radius:7px;background:#fff;color:#000;display:grid;place-items:center}
+.scrub{flex:1;height:4px;border-radius:4px;background:rgba(255,255,255,.22);position:relative;cursor:pointer}
+.scrub i{position:absolute;inset:0 auto 0 0;background:#fff;border-radius:4px}
+.time{font:500 11px var(--mono);color:rgba(255,255,255,.85)}
+.cap{position:absolute;left:50%;bottom:56px;transform:translateX(-50%);font:400 21px var(--serif);color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.7);white-space:nowrap}
+.sel{position:absolute;border:1.5px solid var(--yellow);border-radius:6px;display:none;pointer-events:none;box-shadow:0 0 0 4px rgba(255,225,77,.15)}
+.pop{position:absolute;display:none;width:280px;background:var(--surface);border-radius:12px;box-shadow:0 18px 40px -12px rgba(0,0,0,.5);padding:10px;color:var(--ink);z-index:3}
+.pop .t{font:600 11.5px var(--mono);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+.pop .t span{font:400 11.5px var(--sans);color:var(--muted)}
+.pop input{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none;font-size:12.5px;background:var(--surface2)}
+.pop input:focus{border-color:var(--accent);background:#fff}
+.page{position:relative;height:100%;width:100%;border-radius:14px;overflow:hidden;background:#fff;box-shadow:var(--sh2);display:grid;grid-template-rows:34px 1fr;transition:width .3s}
+.page.phone{width:330px}
+.page .chrome{display:flex;align-items:center;gap:8px;padding:0 6px 0 10px;background:var(--surface2);border-bottom:1px solid var(--line2);font:500 11px var(--mono);color:var(--muted)}
+.page .chrome i{width:8px;height:8px;border-radius:50%;background:#DDD9D1;display:block}
+.page .doc{overflow:auto;padding:22px 26px;position:relative}
+.doc h4{font:400 30px/1.1 var(--serif);margin:0 0 4px}
+.doc p{margin:0 0 14px;color:var(--ink2);font-size:13px}
+.lab{display:grid;grid-template-columns:1fr 200px;gap:16px;align-items:start}
+.page.phone .lab{grid-template-columns:1fr}
+.lab canvas{width:100%;aspect-ratio:16/9;border-radius:10px;background:#0E0E12;display:block}
+.ctrls{display:grid;gap:12px}
+.rng label{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);margin-bottom:4px}
+.rng label b{font:500 12px var(--mono);color:var(--ink)}
+.rng input{width:100%;accent-color:var(--accent)}
+.formula{font:italic 400 22px var(--serif);padding:10px 12px;border-radius:10px;background:var(--surface2);text-align:center}
+.formula small{display:block;font:500 11.5px var(--mono);color:var(--accent);font-style:normal;margin-top:2px}
+.quiz{margin-top:22px;padding-top:18px;border-top:1px solid var(--line2)}
+.quiz h5{font:400 22px var(--serif);margin:0 0 4px}
+.qz{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.page.phone .qz{grid-template-columns:1fr}
+.qz button{padding:10px 12px;border-radius:10px;text-align:left;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);font-size:13px}
+.qz button.right{background:#E8F5EC;box-shadow:inset 0 0 0 1.5px var(--green)}
+.qz button.wrong{background:#FDECEA;box-shadow:inset 0 0 0 1.5px var(--coral)}
+.pickable{outline:1.5px dashed transparent;outline-offset:3px;border-radius:6px;cursor:pointer;transition:outline-color .15s}
+.pickmode .pickable:hover{outline-color:rgba(81,70,229,.5)}
+.pickable.picked{outline:1.5px solid var(--accent)}
+.tl{padding:10px 12px 12px}
+.tl-h{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px;color:var(--muted)}
+.tl-h b{color:var(--ink);font-weight:600;font-size:12.5px}
+.tl-g{display:grid;grid-template-columns:70px 1fr;gap:0 10px}
+.tl-n{font-size:11.5px;color:var(--muted);height:24px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.tl-n:last-child{margin:0}
+.tl-n i{width:7px;height:7px;border-radius:2px;display:block}
+.lanes{position:relative;display:grid;gap:6px}
+.lane{position:relative;height:24px;border-radius:6px;background:var(--surface2)}
+.clip{position:absolute;top:2px;bottom:2px;border-radius:5px;font-size:11px;font-weight:500;padding:0 8px;display:flex;align-items:center;white-space:nowrap;overflow:hidden;cursor:grab}
+.c-blue{background:#E3F4F9;color:#1F6E82;box-shadow:inset 0 0 0 1px #C7E7F0}
+.c-yel{background:#FFF7D1;color:#7A6200;box-shadow:inset 0 0 0 1px #F5E59A}
+.c-grn{background:#E6F4EA;color:#2F7D4A;box-shadow:inset 0 0 0 1px #C9E6D2}
+.c-vio{background:#F1EBF6;color:#6B4B7E;box-shadow:inset 0 0 0 1px #E0D3EA}
+.c-voice{background:#FDECEA;box-shadow:inset 0 0 0 1px #F7CFC9;color:#B2433A}
+.c-voice svg{position:absolute;inset:0;width:100%;height:100%}
+.c-voice span{position:relative;background:#FDECEA;padding:0 4px;border-radius:3px}
+.c-cap{background:#F1F0EC;color:var(--ink2);font-weight:400;box-shadow:inset 0 0 0 1px var(--line)}
+.mkr{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--amber);border-radius:2px}
+.mkr::before{content:"";position:absolute;top:-3px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--amber)}
+.ph{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:2px;pointer-events:none}
+.ph::before{content:"";position:absolute;top:-4px;left:-4px;width:10px;height:10px;background:var(--ink);border-radius:3px;transform:rotate(45deg)}
+.libs{display:flex;align-items:center;gap:8px;padding:10px 12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.libs b{color:var(--ink);font-weight:600;font-size:12.5px;margin-right:4px}
+.lib{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink2);font-weight:500}
+.lib i{width:6px;height:6px;border-radius:50%;display:block}
+.side{border-left:1px solid var(--line);display:grid;grid-template-rows:auto 1fr auto;min-height:0;background:rgba(255,255,255,.4)}
+.side-h{display:flex;align-items:center;gap:8px;padding:12px 14px 8px}
+.agent{white-space:nowrap;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);padding:4px 8px;border-radius:8px}
+.agent:hover{background:rgba(23,23,28,.05)}
+.agent .av{width:16px;height:16px;border-radius:5px;background:#D97757;color:#fff;font-size:9px;font-weight:700;display:grid;place-items:center}
+.pane{overflow:auto;min-height:0;padding:6px 14px 14px;display:none;flex-direction:column;gap:14px}
+.pane.on{display:flex}
+.u{align-self:flex-end;max-width:90%;background:var(--ink);color:#fff;padding:9px 13px;border-radius:14px 14px 4px 14px;font-size:13px}
+.u .ref{display:inline-block;font:500 10.5px var(--mono);background:rgba(255,255,255,.15);border-radius:4px;padding:0 5px;margin-right:4px}
+.a{font-size:13px;color:var(--ink2)}.a p{margin:0 0 9px}
+.steps{padding:11px 12px 1px;border-radius:12px;background:var(--surface);box-shadow:var(--sh1)}
+.step{display:grid;grid-template-columns:16px 1fr;gap:10px;position:relative;padding-bottom:10px;font-size:12.5px;color:var(--ink)}
+.step:not(:last-child)::before{content:"";position:absolute;left:7.5px;top:18px;bottom:1px;width:1px;background:var(--line)}
+.step .ic{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:#E8F5EC;color:#2F7D4A;font-size:9px;font-weight:700}
+.step.live .ic{background:none;border:2px solid var(--accent);border-right-color:transparent;animation:rot .9s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.step small{display:block;color:var(--muted);font-size:11.5px}
+.acts{display:flex;gap:6px;margin-top:9px}
+.comp{padding:10px 14px 14px}
+.box{background:var(--surface);border-radius:14px;box-shadow:var(--sh2);padding:10px 10px 8px}
+.ctx{display:flex;gap:5px;margin-bottom:4px;flex-wrap:wrap}
+.ctx span{font:500 10.5px var(--mono);padding:2px 7px;border-radius:5px;background:var(--accent-soft);color:var(--accent)}
+.ctx span.y{background:#FFF7D1;color:#7A6200}
+.box textarea{width:100%;border:0;outline:none;resize:none;min-height:36px;font-size:13px;background:none}
+.box .r{display:flex;align-items:center;gap:4px}
+.send{width:30px;height:30px;border-radius:9px;background:var(--ink);color:#fff;display:grid;place-items:center}
+.vsrc{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.vsrc button{padding:10px;border-radius:11px;text-align:left;background:var(--surface);box-shadow:var(--sh1)}
+.vsrc button.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.vsrc b{display:block;font-weight:600;font-size:12.5px}.vsrc small{font-size:11px;color:var(--muted)}
+.voicepick{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:11px;background:var(--surface);box-shadow:var(--sh1)}
+.voicepick .av{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#B9B4FF,#5146E5);flex:none}
+.voicepick b{font-weight:500;display:block;font-size:12.5px}.voicepick small{font-size:11px;color:var(--muted)}
+.line{font:400 17px/1.5 var(--serif);color:var(--ink);padding:10px 2px;border-bottom:1px solid var(--line2)}
+.line .s{display:block;font:500 10.5px var(--mono);color:var(--muted);margin-bottom:2px}
+.sync{font:500 10.5px var(--sans);background:#FBF1E1;color:#9A6418;padding:1px 7px 1px 6px;border-radius:999px;vertical-align:2px;display:inline-flex;align-items:center;gap:4px}
+.sync::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--amber)}
+.recbar{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;background:var(--surface);box-shadow:var(--sh1)}
+.mic{width:40px;height:40px;border-radius:50%;background:var(--coral);display:grid;place-items:center;color:#fff;flex:none}
+.recbar.live .mic{animation:pulse 1.3s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 10px rgba(242,107,91,.14)}}
+.bars{display:flex;gap:2px;align-items:center;height:26px;flex:1}
+.bars i{flex:1;background:#F3C2BC;border-radius:2px;display:block}
+.recbar.live .bars i{background:var(--coral)}
+/* modals */
+.scrim{position:absolute;inset:0;background:rgba(23,23,28,.32);display:none;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(2px)}
+.scrim.on{display:flex}
+.modal{width:520px;background:var(--surface);border-radius:18px;box-shadow:0 30px 80px -20px rgba(0,0,0,.5);padding:20px}
+.modal h3{font:400 26px var(--serif);margin:0}
+.mh{display:flex;align-items:center;margin-bottom:14px}
+.mtabs{display:flex;gap:18px;border-bottom:1px solid var(--line2);margin-bottom:16px}
+.mtabs button{padding:6px 0 9px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.mtabs button.on{color:var(--ink);border-color:var(--ink)}
+.mpane{display:none}.mpane.on{display:block}
+.vis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.vis button{text-align:left;padding:10px;border-radius:11px;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
+.vis button.on{background:#fff;box-shadow:inset 0 0 0 2px var(--ink)}
+.vis b{display:block;font-weight:600;font-size:12.5px}.vis small{font-size:11px;color:var(--muted)}
+.field{display:flex;align-items:center;gap:8px;padding:5px 5px 5px 12px;border-radius:10px;background:var(--surface2);box-shadow:inset 0 0 0 1px var(--line)}
+.field span{flex:1;font:500 12px var(--mono);color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.codebox{font:11.5px/1.6 var(--mono);background:#FBFAF7;border-radius:10px;box-shadow:inset 0 0 0 1px var(--line);padding:10px 12px;color:var(--ink2);white-space:pre;overflow:hidden;position:relative;max-height:110px}
+.codebox::after{content:"";position:absolute;left:0;right:0;bottom:0;height:30px;background:linear-gradient(transparent,#FBFAF7)}
+.codebox .k{color:#5146E5}.codebox .s{color:#2F7D4A}
+.note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5}
+.note b{color:var(--ink2);font-weight:500}
+.opt{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--line);margin-bottom:8px}
+.opt .ic{width:36px;height:36px;border-radius:9px;display:grid;place-items:center;background:var(--surface2);flex:none;font:600 10px var(--mono);color:var(--ink2)}
+.opt>div{flex:1}.opt b{font-weight:500;display:block}.opt small{font-size:12px;color:var(--muted)}
+.row2{display:flex;gap:8px;margin-top:10px}
+.li{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line2)}
+.li .lg{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}
+.li>div{flex:1}.li b{font-weight:500}.li small{display:block;font-size:12px;color:var(--muted)}
+.ok{font-size:11.5px;font-weight:500;color:#2F7D4A}
+.grp{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 2px}
+</style>
+</head>
+<body>
+<div class="win" id="win">
+  <header class="bar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <button class="home-btn" title="Home" onclick="go('home')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></button>
+    <div class="title" id="titleBox"><span>Manim Studio</span></div>
+    <span class="sp"></span>
+    <button class="icon" title="Settings" onclick="openModal('settings')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg></button>
+    <button class="btn dark sm" id="shareBtn" onclick="openModal('share')" style="display:none">Share</button>
+  </header>
+
+  <main style="min-height:0;display:grid">
+  <section class="view on" id="home">
+    <div class="home">
+      <div class="eyebrow">Good morning, Ms. Rivera</div>
+      <h1>What would you like to <em>explain</em> today?</h1>
+      <div class="prompt">
+        <textarea>Explain the derivative as the slope of a tangent line for my Grade 11 class. Start with a secant through two points and shrink h toward zero.</textarea>
+        <div class="pf">
+          <button class="btn ghost sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11l-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></svg>Attach lesson plan</button>
+          <span class="sp"></span>
+          <div class="seg" id="lenSeg"><button>Short</button><button class="on">Explainer</button><button>Full lesson</button></div>
+          <button class="btn acc" onclick="openProject(makeKind)">Start <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </div>
+      </div>
+      <div class="make" id="make">
+        <button class="mk on" data-k="video"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 18 C7 4 11 6 14 13 S20 15 22 6" fill="none" stroke="#58C4DD" stroke-width="2"/></svg></span><span><b>Video</b><small>MP4 rendered on your computer</small></span></button>
+        <button class="mk" data-k="web"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="#FFE14D" stroke-width="2"/><path d="M12 12l5-3" stroke="#F26B5B" stroke-width="2"/></svg></span><span><b>Web animation</b><small>Plays in any browser, shareable link</small></span></button>
+        <button class="mk" data-k="page"><span class="ic"><svg width="22" height="22" viewBox="0 0 24 24"><rect x="3" y="15" width="18" height="2" rx="1" fill="#555"/><circle cx="14" cy="16" r="3" fill="#5DB37A"/><path d="M4 11 Q12 0 20 11" fill="none" stroke="#5DB37A" stroke-width="2"/></svg></span><span><b>Interactive page</b><small>One HTML file students can play with</small></span></button>
+      </div>
+      <div class="recent-h"><h2>Recent</h2><button class="btn ghost sm">View all</button></div>
+      <div class="recents">
+        <button class="rc" onclick="openProject('video')"><div class="th" style="background:#0E0E12"><svg viewBox="0 0 160 90"><path d="M10 75 C40 5 70 15 90 50 S135 62 150 18" fill="none" stroke="#58C4DD" stroke-width="2"/><line x1="40" y1="72" x2="125" y2="18" stroke="#FFE14D" stroke-width="1.6"/></svg><span class="tag">Video</span></div><b>The Derivative, Visually</b><span>3:12 · edited just now</span></button>
+        <button class="rc" onclick="openProject('page')"><div class="th" style="background:#fff"><svg viewBox="0 0 160 90"><rect x="10" y="12" width="70" height="8" rx="2" fill="#E7E4DD"/><rect x="10" y="26" width="92" height="56" rx="5" fill="#0E0E12"/><path d="M16 76 Q56 18 96 76" fill="none" stroke="#5DB37A" stroke-width="2"/><rect x="110" y="30" width="40" height="4" rx="2" fill="#E7E4DD"/><circle cx="126" cy="32" r="4" fill="#5146E5"/><rect x="110" y="46" width="40" height="4" rx="2" fill="#E7E4DD"/><circle cx="138" cy="48" r="4" fill="#5146E5"/></svg><span class="tag">Interactive page</span></div><b>Projectile Motion Lab</b><span>Published · 412 views</span></button>
+        <button class="rc" onclick="openProject('web')"><div class="th" style="background:#0E0E12"><svg viewBox="0 0 160 90"><circle cx="80" cy="45" r="27" fill="none" stroke="#F26B5B" stroke-width="2"/><line x1="80" y1="45" x2="99" y2="26" stroke="#FFE14D" stroke-width="1.8"/></svg><span class="tag">Web animation</span></div><b>Unit Circle</b><span>0:14 · yesterday</span></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="view" id="studio" style="overflow:hidden">
+    <div class="studio">
+      <aside class="scenes"><h3 id="listTitle">Scenes</h3><div id="sceneList"></div><button class="add">+ Add</button></aside>
+      <div class="center">
+        <div class="stagewrap">
+          <div class="stage" id="vstage">
+            <canvas id="cv" width="1280" height="720"></canvas>
+            <span class="glass hint" id="hint">Click anything to change it</span>
+            <div class="cap" id="cap"></div>
+            <div class="sel" id="sel"></div>
+            <div class="pop" id="pop"><div class="t">secant_line <span>· Line</span></div><input id="popIn" placeholder="What should change?"></div>
+            <div class="ctl glass">
+              <button class="play" id="play"><svg width="12" height="12" viewBox="0 0 12 12" id="playIc"></svg></button>
+              <span class="time" id="time">0:00</span>
+              <div class="scrub" id="scrub"><i id="scrubI"></i></div>
+              <span class="time">0:24</span>
+            </div>
+          </div>
+          <div class="page" id="pstage" style="display:none">
+            <div class="chrome"><i></i><i></i><i></i><span style="margin-left:6px">projectile-lab.html</span><span class="sp"></span><div class="seg" id="devSeg"><button class="on" data-d="desk">Desktop</button><button data-d="phone">Phone</button></div></div>
+            <div class="doc pickmode" id="doc">
+              <h4 class="pickable" data-n="title">Projectile Motion Lab</h4>
+              <p class="pickable" data-n="intro">Change the launch angle and speed. Where does the ball land? Which angle goes farthest?</p>
+              <div class="lab">
+                <canvas id="pc" width="800" height="450" class="pickable" data-n="trajectory_canvas"></canvas>
+                <div class="ctrls">
+                  <div class="rng pickable" data-n="angle_slider"><label>Angle θ <b id="aV">45°</b></label><input type="range" id="ang" min="5" max="85" value="45"></div>
+                  <div class="rng pickable" data-n="speed_slider"><label>Speed v <b id="sV">20 m/s</b></label><input type="range" id="spd" min="5" max="30" value="20"></div>
+                  <div class="formula pickable" data-n="range_formula">R = v² sin 2θ / g<small id="rV">R = 40.8 m</small></div>
+                  <button class="btn sm" onclick="launch()">Launch ▸</button>
+                </div>
+              </div>
+              <div class="quiz pickable" data-n="check_question_1">
+                <h5>Check yourself</h5>
+                <p style="margin:0">At the same speed, which launch angle sends the ball farthest?</p>
+                <div class="qz" id="qz"><button>30°</button><button data-r="1">45°</button><button>60°</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tl card" id="timeline">
+          <div class="tl-h"><b>Timeline</b><span>Drag clips to retime · drag ● to sync with a word</span><span class="sp"></span><button class="btn ghost sm">Fit to voice</button></div>
+          <div class="tl-g">
+            <div><div class="tl-n"><i style="background:var(--blue)"></i>Animation</div><div class="tl-n"><i style="background:var(--coral)"></i>Voice</div><div class="tl-n"><i style="background:var(--faint)"></i>Captions</div></div>
+            <div class="lanes">
+              <div class="lane"><div class="clip c-blue" style="left:0;width:13.5%">Axes</div><div class="clip c-blue" style="left:14%;width:13.5%">Graph</div><div class="clip c-yel" style="left:28%;width:15.5%">Secant</div><div class="clip c-grn" style="left:44%;width:37.5%">h → 0 · 6s</div><div class="clip c-vio" style="left:82%;width:18%">Write f′(x)</div></div>
+              <div class="lane"><div class="clip c-voice" style="left:1%;width:96%"><svg preserveAspectRatio="none" viewBox="0 0 300 20" id="wv"></svg><span>AI voice · Ava</span></div><div class="mkr" style="left:28%"></div><div class="mkr" style="left:44%"></div><div class="mkr" style="left:82%"></div></div>
+              <div class="lane"><div class="clip c-cap" style="left:1%;width:26.5%">Here’s a curve, f(x)…</div><div class="clip c-cap" style="left:28%;width:15.5%">Pick two points…</div><div class="clip c-cap" style="left:44%;width:37.5%">As h gets smaller…</div><div class="clip c-cap" style="left:82%;width:15%">…the derivative.</div></div>
+              <div class="ph" id="ph"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card libs" id="libs" style="display:none">
+          <b>Built with</b>
+          <span class="lib"><i style="background:#5DB37A"></i>Canvas</span>
+          <span class="lib"><i style="background:#5146E5"></i>KaTeX</span>
+          <span class="lib"><i style="background:#E8A33D"></i>Matter.js</span>
+          <span class="sp"></span><span style="font-family:var(--mono)">one file · 214 KB · works offline</span>
+        </div>
+      </div>
+      <aside class="side">
+        <div class="side-h">
+          <div class="seg" id="sideSeg"><button class="on" data-p="chat">Assistant</button><button data-p="narr" id="narrTab">Narration</button></div>
+          <span class="sp"></span>
+          <button class="agent"><span class="av">C</span>Claude Code <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></button>
+        </div>
+        <div class="pane on" id="chat"></div>
+        <div class="pane" id="narr">
+          <div class="vsrc" id="vsrc"><button class="on"><b>AI voice</b><small>Free, runs offline</small></button><button><b>My voice</b><small>Record or upload</small></button></div>
+          <div class="voicepick"><span class="av"></span><div><b>Ava</b><small>Warm · relaxed pace</small></div><span class="sp"></span><button class="btn ghost sm">Change</button></div>
+          <div>
+            <div class="line"><span class="s">2 · The curve</span>Here’s a curve, <em>f(x)</em>. <span class="sync">graph</span> Let’s zoom in on one point.</div>
+            <div class="line"><span class="s">3 · Secant to tangent</span>Join two points with a <span class="sync">secant</span>. As <em>h</em> gets <span class="sync">smaller</span>, it swings toward the tangent, and its slope is the <span class="sync">derivative</span>.</div>
+          </div>
+          <div class="recbar" id="rec"><button class="mic" id="mic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button><div style="flex:1;min-width:0"><b id="recT" style="font-size:12.5px;font-weight:600">Record this scene</b><div class="bars" id="bars"></div></div></div>
+        </div>
+        <div class="comp">
+          <div class="box">
+            <div class="ctx" id="ctx"><span>Scene 3</span></div>
+            <textarea id="compIn" placeholder="Describe a change…"></textarea>
+            <div class="r"><button class="icon" title="Attach"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 11l-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></svg></button><span class="sp"></span><button class="send" id="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+  </main>
+
+  <div class="scrim" id="share" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="mh"><h3>Share</h3><span class="sp"></span><button class="icon" onclick="closeModal()">✕</button></div>
+      <div class="mtabs" id="mtabs"><button class="on" data-t="t-link">Link</button><button data-t="t-embed">Embed</button><button data-t="t-file">Download</button></div>
+      <div class="mpane on" id="t-link">
+        <div class="vis" id="vis"><button><b>Private</b><small>Only you</small></button><button class="on"><b>Unlisted</b><small>Anyone with the link</small></button><button><b>Public</b><small>Listed in the gallery</small></button></div>
+        <div class="field"><span id="linkUrl">yoursite.app/p/projectile-lab-k3f9</span><button class="btn sm dark">Copy</button></div>
+        <div class="note">Free hosting. Students don’t need an account.</div>
+      </div>
+      <div class="mpane" id="t-embed">
+        <div class="seg" id="embSeg" style="margin-bottom:10px"><button class="on" data-e="iframe">Hosted iframe</button><button data-e="full">Full HTML</button></div>
+        <div class="codebox" id="embIframe"><span class="k">&lt;iframe</span> src=<span class="s">"https://yoursite.app/e/projectile-lab-k3f9"</span>
+  width=<span class="s">"100%"</span> height=<span class="s">"520"</span> allow=<span class="s">"fullscreen"</span>
+  style=<span class="s">"border:0;border-radius:12px"</span><span class="k">&gt;&lt;/iframe&gt;</span></div>
+        <div class="codebox" id="embFull" style="display:none"><span class="k">&lt;!doctype html&gt;</span>
+<span class="k">&lt;html</span> lang=<span class="s">"en"</span><span class="k">&gt;&lt;head&gt;&lt;meta</span> charset=<span class="s">"utf-8"</span><span class="k">&gt;</span>
+<span class="k">&lt;title&gt;</span>Projectile Motion Lab<span class="k">&lt;/title&gt;</span>
+<span class="k">&lt;style&gt;</span>/* katex.min.css + fonts, inlined */ …
+<span class="k">&lt;script&gt;</span>/* matter.min.js, inlined */ …</div>
+        <div class="row2"><button class="btn sm dark" id="embCopy">Copy embed code</button><span class="sp"></span><span class="muted" style="font-size:12px;align-self:center" id="embSize">Stays up to date when you edit</span></div>
+        <div class="note" id="embNote">Paste into Google Sites, Canvas, Moodle, Notion or any page that accepts embeds.</div>
+      </div>
+      <div class="mpane" id="t-file"><div id="fileOpts"></div></div>
+    </div>
+  </div>
+
+  <div class="scrim" id="settings" onclick="if(event.target===this)closeModal()">
+    <div class="modal" style="width:460px">
+      <div class="mh"><h3>Settings</h3><span class="sp"></span><button class="icon" onclick="closeModal()">✕</button></div>
+      <div class="grp">Assistants · your own subscriptions</div>
+      <div class="li"><span class="lg" style="background:#D97757;color:#fff">C</span><div><b>Claude Code</b><small>Found on this computer · signed in</small></div><span class="ok">● Ready</span></div>
+      <div class="li"><span class="lg" style="background:var(--ink);color:#fff">◎</span><div><b>Codex</b><small>Signed in with ChatGPT</small></div><span class="ok">● Ready</span></div>
+      <div class="grp">Rendering</div>
+      <div class="li"><span class="lg" style="background:#E3F4F9;color:#1F6E82">CE</span><div><b>Manim Community</b><small>Installed for you · videos</small></div><span class="ok">● Ready</span></div>
+      <div class="li"><span class="lg" style="background:#E6F4EA;color:#2F7D4A">W</span><div><b>manim-web</b><small>Built in · web animations</small></div><span class="ok">● Ready</span></div>
+      <div class="li"><span class="lg" style="background:#FDECEA;color:#B2433A">∑</span><div><b>LaTeX</b><small>Optional, for typeset equations in videos</small></div><button class="btn sm">Install</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const win=document.getElementById('win'),top_=window.top===window;
+if(top_)document.body.style.cssText='background:#D9D6CF;padding:24px;display:flex;justify-content:center';
+function fit(){const w=document.documentElement.clientWidth-(top_?48:16);win.style.zoom=Math.min(top_?1.25:1,w/1180)}
+fit();addEventListener('resize',fit);
+const $=id=>document.getElementById(id);
+function group(sel,item,cb){document.querySelectorAll(sel).forEach(g=>g.addEventListener('click',e=>{const b=e.target.closest(item);if(!b||!g.contains(b))return;g.querySelectorAll(item).forEach(x=>x.classList.remove('on'));b.classList.add('on');cb&&cb(b)}))}
+
+const P={
+ video:{title:'The Derivative, Visually',kind:'Video · Manim',list:'Scenes',sel:2,link:'yoursite.app/v/derivative-k3f9',
+  items:[["Hook","0:09","#5DB37A",`<text x="80" y="58" fill="#fff" font-size="30" text-anchor="middle" font-family="Instrument Serif,serif" font-style="italic">how fast?</text>`],["The curve","0:22","#5DB37A",`<path d="M10 75 C40 5 70 15 90 50 S135 62 150 18" fill="none" stroke="#58C4DD" stroke-width="3"/>`],["Secant to tangent","0:24","#5146E5",`<path d="M10 75 C40 5 70 15 90 50 S135 62 150 18" fill="none" stroke="#58C4DD" stroke-width="3"/><line x1="36" y1="74" x2="128" y2="16" stroke="#FFE14D" stroke-width="3"/>`],["Limit formula","0:18","#B4B1BA",`<text x="80" y="56" fill="#fff" font-size="22" text-anchor="middle" font-family="Instrument Serif,serif" font-style="italic">f′(x) = lim</text>`],["Recap quiz","0:30","#B4B1BA",`<rect x="40" y="26" width="80" height="38" rx="6" fill="none" stroke="#9A72AC" stroke-width="2.5" stroke-dasharray="5 4"/>`]],
+  chat:`<div class="u"><span class="ref">Scene 3</span>Slow down the secant shrinking and show h as a live number.</div>
+  <div class="a"><p>Done. The limit now takes 6 seconds, with a live <b>h</b> readout in the corner.</p>
+  <div class="steps"><div class="step"><span class="ic">✓</span><div>Edited the scene<small>Slower tracker, live h label</small></div></div><div class="step"><span class="ic">✓</span><div>Rendered a draft<small>480p · 4 s</small></div></div><div class="step"><span class="ic">✓</span><div>Checked the frames<small>Moved the label so it doesn’t cover the curve</small></div></div></div>
+  <div class="acts"><button class="btn sm">Keep</button><button class="btn sm ghost">Undo</button><button class="btn sm ghost">Show code</button></div></div>`},
+ page:{title:'Projectile Motion Lab',kind:'Interactive page · HTML',list:'Sections',sel:1,link:'yoursite.app/p/projectile-lab-k3f9',
+  items:[["Intro","text","#5DB37A",`<rect x="20" y="22" width="90" height="10" rx="3" fill="#fff" opacity=".8"/><rect x="20" y="42" width="120" height="6" rx="3" fill="#fff" opacity=".35"/><rect x="20" y="56" width="100" height="6" rx="3" fill="#fff" opacity=".35"/>`],["Simulation","canvas","#5146E5",`<path d="M14 80 Q80 -10 146 80" fill="none" stroke="#5DB37A" stroke-width="3"/><circle cx="80" cy="35" r="6" fill="#FFE14D"/>`],["Check yourself","quiz","#B4B1BA",`<rect x="30" y="24" width="100" height="14" rx="4" fill="none" stroke="#9A72AC" stroke-width="2"/><rect x="30" y="48" width="100" height="14" rx="4" fill="none" stroke="#9A72AC" stroke-width="2"/>`]],
+  chat:`<div class="u">Make a projectile motion lab for Grade 10. Sliders for angle and speed, show where it lands, and the range formula.</div>
+  <div class="a"><p>Here’s a one-page lab. Drag the sliders, then hit Launch. Click any part of the page to ask me to change it.</p>
+  <div class="steps"><div class="step"><span class="ic">✓</span><div>Planned the page<small>Intro, simulation, 3 check questions</small></div></div><div class="step"><span class="ic">✓</span><div>Built it as one HTML file<small>Canvas · KaTeX · Matter.js</small></div></div><div class="step"><span class="ic">✓</span><div>Tested desktop and phone<small>Sliders stack under the canvas on small screens</small></div></div></div>
+  <div class="acts"><button class="btn sm">Keep</button><button class="btn sm ghost">Undo</button><button class="btn sm ghost">Show code</button></div></div>`}
+};
+let cur='video',makeKind='video';
+group('#make','.mk',b=>makeKind=b.dataset.k);group('#lenSeg','button');
+function go(v){document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id===v));
+ $('shareBtn').style.display=v==='studio'?'':'none';if(v==='home')$('titleBox').innerHTML='<span>Manim Studio</span>'}
+function showPane(id){document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id===id));document.querySelectorAll('#sideSeg button').forEach(b=>b.classList.toggle('on',b.dataset.p===id))}
+function openProject(k){cur=k==='web'?'video':k;const p=P[cur],isPage=cur==='page',one=p.list.slice(0,-1);
+ $('titleBox').innerHTML=`<span>${p.title}</span><span class="kind">${k==='web'?'Web animation · manim-web':p.kind}</span>`;
+ $('listTitle').textContent=p.list;
+ $('sceneList').innerHTML=p.items.map((s,i)=>`<button class="sc${i===p.sel?' on':''}"><span class="th"><svg viewBox="0 0 160 90">${s[3]}</svg></span><span><b>${s[0]}</b><small><i style="background:${s[2]}"></i>${s[1]}</small></span></button>`).join('');
+ $('sceneList').querySelectorAll('.sc').forEach((b,i)=>b.onclick=()=>{$('sceneList').querySelectorAll('.sc').forEach(x=>x.classList.remove('on'));b.classList.add('on');$('ctx').innerHTML=`<span>${one} ${i+1}</span>`});
+ $('vstage').style.display=isPage?'none':'';$('pstage').style.display=isPage?'':'none';
+ $('timeline').style.display=isPage?'none':'';$('libs').style.display=isPage?'':'none';$('narrTab').style.display=isPage?'none':'';
+ showPane('chat');$('chat').innerHTML=p.chat;$('ctx').innerHTML=`<span>${one} ${p.sel+1}</span>`;$('linkUrl').textContent=p.link;
+ buildFile(isPage);go('studio');if(isPage)drawLab()}
+group('#sideSeg','button',b=>showPane(b.dataset.p));group('#vsrc','button');
+group('#devSeg','button',b=>{$('pstage').classList.toggle('phone',b.dataset.d==='phone');setTimeout(drawLab,320)});
+
+function openModal(id){$(id).classList.add('on')}
+function closeModal(){document.querySelectorAll('.scrim').forEach(s=>s.classList.remove('on'))}
+group('#mtabs','button',b=>document.querySelectorAll('.mpane').forEach(p=>p.classList.toggle('on',p.id===b.dataset.t)));
+group('#vis','button');
+group('#embSeg','button',b=>{const f=b.dataset.e==='full';$('embIframe').style.display=f?'none':'';$('embFull').style.display=f?'':'none';
+ $('embCopy').textContent=f?'Copy full HTML':'Copy embed code';$('embSize').textContent=f?'214 KB · no hosting needed':'Stays up to date when you edit';
+ $('embNote').innerHTML=f?'<b>For sites that accept raw HTML</b> (Google Sites “Embed code”, WordPress Custom HTML, Squarespace). Many LMS editors strip scripts, so use the iframe or upload the .html file there.':'Paste into Google Sites, Canvas, Moodle, Notion or any page that accepts embeds.'});
+function buildFile(isPage){$('fileOpts').innerHTML=isPage?
+ `<div class="opt"><span class="ic">HTML</span><div><b>Single HTML file</b><small>Everything inlined. Opens offline; upload it to any LMS.</small></div><button class="btn sm dark">Download</button></div>
+  <div class="opt"><span class="ic">ZIP</span><div><b>Source folder</b><small>HTML, JS and assets, for editing by hand</small></div><button class="btn sm">Download</button></div>`:
+ `<div class="opt"><span class="ic">MP4</span><div><b>Video</b><small>1080p · narration and captions mixed in</small></div><div class="seg"><button class="on">16:9</button><button>9:16</button><button>1:1</button></div></div>
+  <div class="opt"><span class="ic">SRT</span><div><b>Captions file</b><small>For YouTube or your LMS player</small></div><button class="btn sm">Download</button></div>
+  <div class="opt"><span class="ic">HTML</span><div><b>Web version</b><small>Converted to manim-web, one HTML file</small></div><button class="btn sm">Convert</button></div>
+  <div class="row2"><button class="btn dark">Export MP4</button><span class="sp"></span><span class="muted" style="font-size:12px;align-self:center">Scenes 1–2 cached · about 40 s</span></div>`}
+
+let w='';for(let i=0;i<300;i+=3){const h=2+Math.abs(Math.sin(i*.13)*Math.cos(i*.045))*12+Math.random()*2.5;w+=`<rect x="${i}" y="${10-h/2}" width="1.6" height="${h}" fill="#F26B5B" opacity=".55"/>`}$('wv').innerHTML=w;
+for(let i=0;i<36;i++){const e=document.createElement('i');e.style.height=(4+Math.random()*16)+'px';$('bars').appendChild(e)}
+$('mic').onclick=()=>{$('rec').classList.toggle('live');$('recT').textContent=$('rec').classList.contains('live')?'Recording · read the lines above':'Record this scene'};
+setInterval(()=>{if($('rec').classList.contains('live'))$('bars').querySelectorAll('i').forEach(e=>e.style.height=(4+Math.random()*22)+'px')},110);
+
+const cv=$('cv'),c=cv.getContext('2d'),W=1280,H=720,ox=170,oy=590,S=110,SY=80;
+const f=x=>0.09*(x-1)*(x-4)*(x-7)+2.4,X=x=>ox+x*S,Y=y=>oy-y*SY,x0=2.2,DUR=24;
+let t=0,playing=true,last=performance.now(),secBox=null;
+const caps=[[0,"Here’s a curve, f(x)…"],[6.7,"Pick two points and join them…"],[10.5,"As h gets smaller, the secant swings…"],[19.6,"…and its slope is the derivative."]];
+const E=u=>u<=0?0:u>=1?1:.5-.5*Math.cos(u*Math.PI);
+const L=(a,b,d,e)=>{c.beginPath();c.moveTo(a,b);c.lineTo(d,e);c.stroke()};
+function draw(){c.fillStyle='#0E0E12';c.fillRect(0,0,W,H);
+ c.strokeStyle='rgba(88,196,221,.07)';c.lineWidth=1.5;for(let i=-1;i<12;i++)L(X(i),0,X(i),H);for(let j=-1;j<9;j++)L(0,Y(j),W,Y(j));
+ const a=E(t/2.5);c.globalAlpha=a;c.strokeStyle='rgba(255,255,255,.75)';c.lineWidth=3;L(ox-30,oy,ox-30+(W-230)*a,oy);L(ox,oy+30,ox,oy+30-(H-110)*a);c.globalAlpha=1;
+ const g=E((t-2.5)/3.5);if(g>0){c.strokeStyle='#58C4DD';c.lineWidth=6;c.lineCap='round';c.beginPath();const xe=.25+8.05*g;let fs=1;for(let x=.25;x<=xe;x+=.025){fs?c.moveTo(X(x),Y(f(x))):c.lineTo(X(x),Y(f(x)));fs=0}c.stroke();
+  if(g>.95){c.fillStyle='#58C4DD';c.font='italic 44px "Instrument Serif"';c.fillText('f(x)',X(8.3)+14,Y(f(8.3))+10)}}
+ const s=E((t-6.7)/3);secBox=null;
+ if(s>0){const hT=E((t-10.5)/6.5),h=2.6-2.59*hT,x1=x0+h,m=(f(x1)-f(x0))/h,ax=x0-2.1,bx=x0+4.2,done=hT>=.999;
+  c.globalAlpha=s;c.strokeStyle=done?'#5DB37A':'#FFE14D';c.lineWidth=5;const ex=ax+(bx-ax)*s;
+  const p1=[X(ax),Y(f(x0)+m*(ax-x0))],p2=[X(ex),Y(f(x0)+m*(ex-x0))];L(...p1,...p2);
+  secBox=[Math.min(p1[0],p2[0]),Math.min(p1[1],p2[1]),Math.abs(p2[0]-p1[0]),Math.abs(p2[1]-p1[1])];
+  [x0,x1].forEach((x,i)=>{c.fillStyle=i?'#F26B5B':'#fff';c.beginPath();c.arc(X(x),Y(f(x)),11,0,7);c.fill()});c.globalAlpha=1;
+  if(t>10.5){c.textAlign='right';c.font='500 34px "JetBrains Mono"';c.fillStyle='rgba(255,255,255,.9)';c.fillText('h = '+h.toFixed(2),W-60,84);c.fillStyle=done?'#5DB37A':'#FFE14D';c.fillText('slope = '+m.toFixed(2),W-60,132);c.textAlign='left'}}
+ const k=E((t-19.6)/2);if(k>0){c.globalAlpha=k;c.fillStyle='#fff';c.font='italic 58px "Instrument Serif"';const b0=X(.5);c.fillText('f′(x) = lim',b0,130);c.font='italic 28px "Instrument Serif"';c.fillText('h→0',b0+170,166);c.font='italic 52px "Instrument Serif"';c.fillText('f(x+h) − f(x)',b0+290,104);c.fillRect(b0+288,120,262,3);c.fillText('h',b0+408,174);c.globalAlpha=1}}
+function tick(now){const dt=Math.min(.05,(now-last)/1000);last=now;
+ if(cur==='video'){if(playing){t+=dt;if(t>DUR+2)t=0}draw();const pc=Math.min(1,t/DUR);$('scrubI').style.width=pc*100+'%';$('ph').style.left=pc*100+'%';
+  $('time').textContent='0:'+String(Math.floor(Math.min(t,DUR))).padStart(2,'0');let cp='';caps.forEach(([s,x])=>{if(t>=s)cp=x});$('cap').textContent=cp}
+ else stepLab(dt);requestAnimationFrame(tick)}
+requestAnimationFrame(tick);
+function setPlay(v){playing=v;$('playIc').innerHTML=v?'<rect x="2" y="1" width="3" height="10" rx="1"/><rect x="7" y="1" width="3" height="10" rx="1"/>':'<path d="M2.5 1l8 5-8 5z"/>'}
+setPlay(true);$('play').onclick=()=>setPlay(!playing);
+$('scrub').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();t=(e.clientX-r.left)/r.width*DUR};
+const sel=$('sel'),pop=$('pop');
+function clearSel(){sel.style.display=pop.style.display='none';$('hint').style.display='';$('ctx').innerHTML='<span>Scene 3</span>'}
+cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),k=r.width/W,kk=cv.offsetWidth/W,mx=(e.clientX-r.left)/k,my=(e.clientY-r.top)/k;
+ if(secBox){const[bx,by,bw,bh]=secBox;if(mx>bx-30&&mx<bx+bw+30&&my>by-30&&my<by+bh+30){
+  Object.assign(sel.style,{display:'block',left:bx*kk-8+'px',top:by*kk-8+'px',width:bw*kk+16+'px',height:bh*kk+16+'px'});
+  Object.assign(pop.style,{display:'block',left:Math.max(12,Math.min(cv.offsetWidth-292,bx*kk+bw*kk/2-140))+'px',top:Math.max(12,by*kk-70)+'px'});
+  $('hint').style.display='none';$('ctx').innerHTML='<span>Scene 3</span><span class="y">secant_line</span><span>0:'+String(Math.floor(t)).padStart(2,'0')+'</span>';
+  setPlay(false);$('popIn').focus();return}}clearSel()});
+
+const pcv=$('pc'),q=pcv.getContext('2d');let ball=null;
+function params(){return{a:+$('ang').value*Math.PI/180,v:+$('spd').value,g:9.8}}
+function drawLab(){const{a,v,g}=params(),R=v*v*Math.sin(2*a)/g,Tf=2*v*Math.sin(a)/g;
+ $('aV').textContent=$('ang').value+'°';$('sV').textContent=$('spd').value+' m/s';$('rV').textContent='R = '+R.toFixed(1)+' m';
+ const PW=800,PH=450,gy=390,sx=8.4,x0=40;q.fillStyle='#0E0E12';q.fillRect(0,0,PW,PH);
+ q.strokeStyle='rgba(255,255,255,.06)';q.lineWidth=1;for(let m=0;m<=90;m+=10){q.beginPath();q.moveTo(x0+m*sx,0);q.lineTo(x0+m*sx,gy);q.stroke()}
+ q.strokeStyle='rgba(255,255,255,.6)';q.lineWidth=2;q.beginPath();q.moveTo(0,gy);q.lineTo(PW,gy);q.stroke();
+ q.fillStyle='rgba(255,255,255,.45)';q.font='16px "JetBrains Mono"';for(let m=0;m<=80;m+=20)q.fillText(m+'m',x0+m*sx-10,gy+26);
+ q.setLineDash([6,7]);q.strokeStyle='#5DB37A';q.lineWidth=3;q.beginPath();for(let i=0;i<=80;i++){const tt=Tf*i/80,x=v*Math.cos(a)*tt,y=v*Math.sin(a)*tt-.5*g*tt*tt;i?q.lineTo(x0+x*sx,gy-y*sx):q.moveTo(x0,gy)}q.stroke();q.setLineDash([]);
+ q.fillStyle='#F26B5B';q.beginPath();q.moveTo(x0+R*sx,gy-6);q.lineTo(x0+R*sx-7,gy-20);q.lineTo(x0+R*sx+7,gy-20);q.fill();
+ q.strokeStyle='#FFE14D';q.lineWidth=4;q.beginPath();q.moveTo(x0,gy);q.lineTo(x0+46*Math.cos(a),gy-46*Math.sin(a));q.stroke();
+ if(ball!==null){const x=v*Math.cos(a)*ball,y=v*Math.sin(a)*ball-.5*g*ball*ball;q.fillStyle='#FFE14D';q.beginPath();q.arc(x0+x*sx,gy-Math.max(0,y)*sx,10,0,7);q.fill()}}
+function launch(){ball=0}
+$('qz').addEventListener('click',e=>{const b=e.target.closest('button');if(b){b.classList.add(b.dataset.r?'right':'wrong');e.stopPropagation()}});
+function stepLab(dt){if(ball===null)return;const{a,v,g}=params();ball+=dt*1.6;if(ball>2*v*Math.sin(a)/g)ball=null;drawLab()}
+['ang','spd'].forEach(id=>$(id).addEventListener('input',()=>{ball=null;drawLab()}));
+$('doc').addEventListener('click',e=>{const el=e.target.closest('.pickable');if(!el||e.target.tagName==='INPUT'||e.target.tagName==='BUTTON')return;
+ document.querySelectorAll('.picked').forEach(x=>x.classList.remove('picked'));el.classList.add('picked');
+ $('ctx').innerHTML=`<span>Section 2</span><span class="y">${el.dataset.n}</span>`;$('compIn').focus()});
+
+function send(text){if(!text.trim())return;const feed=$('chat');showPane('chat');
+ const u=document.createElement('div');u.className='u';u.textContent=text;feed.appendChild(u);
+ const a=document.createElement('div');a.className='a';a.innerHTML='<div class="steps"><div class="step live"><span class="ic"></span><div>Reading the selection</div></div></div>';feed.appendChild(a);feed.scrollTop=1e9;
+ const seq=cur==='page'?['Editing the page','Testing in the preview']:['Editing the scene','Rendering a draft','Checking the frames'];let i=0;
+ const iv=setInterval(()=>{const st=a.querySelector('.steps'),l=st.lastChild;l.className='step';l.querySelector('.ic').textContent='✓';
+  if(i<seq.length)st.insertAdjacentHTML('beforeend',`<div class="step live"><span class="ic"></span><div>${seq[i++]}</div></div>`);
+  else{clearInterval(iv);a.insertAdjacentHTML('afterbegin','<p>Updated. Take a look.</p>');a.insertAdjacentHTML('beforeend','<div class="acts"><button class="btn sm">Keep</button><button class="btn sm ghost">Undo</button></div>')}
+  feed.scrollTop=1e9},800)}
+$('send').onclick=()=>{send($('compIn').value);$('compIn').value=''};
+$('compIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('send').click()}});
+$('popIn').addEventListener('keydown',e=>{if(e.key==='Enter'){send(e.target.value);e.target.value='';clearSel();setPlay(true)}});
+// open a view directly: #video, #page, #web, #page-share
+{const h=location.hash.slice(1).split('-');if(P[h[0]]||h[0]==='web')openProject(h[0]);if(h[1])openModal(h[1])}
+</script>
+</body>
+</html>
