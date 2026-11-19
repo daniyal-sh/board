@@ -64,9 +64,23 @@ async function record() {
         if (delta > 0.01) await rec.wait(delta);
       };
       // Scenes are written against Scene; forward anything the recorder doesn't handle.
-      const scene = new Proxy(rec, {
+      // add() and remove() happen instantly at that point of the timeline (as tiny fades),
+      // otherwise an object added in a later scene would show for the whole animation.
+      const add = (...ms: any[]) => {
+        const fresh = ms.filter((m) => m && !(player.scene as any).mobjects.has(m));
+        if (fresh.length) void rec.play(...fresh.map((m) => new K_FadeIn(m, { duration: 0.001 })));
+        return scene;
+      };
+      const remove = (...ms: any[]) => {
+        const present = ms.filter((m) => m && (player.scene as any).mobjects.has(m));
+        if (present.length) void rec.play(...present.map((m) => new FadeOut(m, { duration: 0.001 })));
+        return scene;
+      };
+      const scene: any = new Proxy(rec, {
         get(target, prop) {
           if (prop === "waitUntil") return waitUntil;
+          if (prop === "add") return add;
+          if (prop === "remove") return remove;
           const own = (target as any)[prop];
           if (own !== undefined) return typeof own === "function" ? own.bind(target) : own;
           const real = (player.scene as any)[prop];

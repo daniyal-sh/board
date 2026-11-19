@@ -143,9 +143,9 @@ export function WebStage(props: {
   const animSteps = steps.filter((s) => !s.wait);
 
   return (
-    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] gap-3 px-[18px] py-4">
-      <div className="flex items-center gap-2">
-        <div className="seg">
+    <div className="grid h-full min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden px-[18px] py-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="seg flex-none">
           <button data-on={!whole} onClick={() => setWhole(false)} disabled={!props.scene}>
             This scene
           </button>
@@ -169,7 +169,7 @@ export function WebStage(props: {
             </button>
           </span>
         )}
-        <span className="truncate text-[12px] text-muted">
+        <span className="min-w-0 flex-1 truncate text-[12px] text-muted">
           {whole ? (segments.length ? `${segments.length} scene${segments.length === 1 ? "" : "s"} · ${fmt(duration)}` : "") : props.scene?.title}
         </span>
         <span className="flex-1" />
@@ -186,7 +186,7 @@ export function WebStage(props: {
 
       <div className="flex min-h-0 items-center justify-center">
         <div
-          className={`relative overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] ${props.aspect === "vertical" ? "h-full max-w-full" : "aspect-video max-h-full w-full"}`}
+          className={`@container relative overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] ${props.aspect === "vertical" ? "h-full max-w-full" : "aspect-video max-h-full w-full"}`}
           style={props.aspect === "vertical" ? { aspectRatio: "9 / 16" } : undefined}
           data-agent-view
           data-project={props.projectId}
@@ -210,7 +210,7 @@ export function WebStage(props: {
               )}
             </div>
           )}
-          {whole && current && segments.length > 1 && <span className="glass pointer-events-none absolute left-3 top-3 rounded-lg px-2.5 py-1 text-[11px]">{current.title}</span>}
+          {whole && current && segments.length > 1 && <span className="glass pointer-events-none absolute left-3 top-3 max-w-[calc(100%-24px)] truncate rounded-lg px-2.5 py-1 text-[11px]">{current.title}</span>}
           <StartOverlay show={Boolean(url) && duration > 0 && !playing && time < 0.05 && !picking} onPlay={() => send("play")} />
           {url && duration > 0 && <Transport playing={playing} time={time} duration={duration} segments={whole ? segments : []} onToggle={toggle} onSeek={seek} />}
           {errors.length > 0 && (
@@ -246,7 +246,7 @@ export function WebStage(props: {
             <Download size={14} /> .html
           </button>
         </div>
-        <div className="grid grid-cols-[70px_1fr] gap-x-2.5">
+        <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-x-2.5">
           <div>
             {whole && <div className="mb-1.5 flex h-[46px] items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-ink" />Scenes</div>}
             <div className="flex h-6 items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-manim-blue" />Animation</div>

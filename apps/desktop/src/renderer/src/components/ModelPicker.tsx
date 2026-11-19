@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { DEFAULT_ACCESS, type AccessLevel, type AgentProviderId, AgentSettings, ModelOption, ProviderModels, ProviderStatus } from "@studio/shared";
 import { studio } from "../lib/api";
 import { Check, Refresh } from "./Icons";
@@ -63,23 +64,72 @@ function normalize(s: AgentSettings, model?: ModelOption): AgentSettings {
 function usePopover() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  /** The menu itself lives in a floating layer (see Floating), outside `ref`. */
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const inside = (t: EventTarget | null) => ref.current?.contains(t as Node) || menuRef.current?.contains(t as Node);
+    const close = (e: MouseEvent) => !inside(e.target) && setOpen(false);
     const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("mousedown", close);
     window.addEventListener("keydown", esc);
+    window.addEventListener("blur", () => setOpen(false), { once: true });
     return () => {
       window.removeEventListener("mousedown", close);
       window.removeEventListener("keydown", esc);
     };
   }, [open]);
-  return { open, setOpen, ref };
+  return { open, setOpen, ref, menuRef };
+}
+
+/**
+ * A menu in a layer above everything, placed next to its chip and kept inside the window:
+ * panels with overflow hidden (the chat, the timeline) can't clip it, and it flips up or down
+ * to wherever there is room.
+ */
+function Floating(props: { pop: ReturnType<typeof usePopover>; width: number; placement?: "up" | "down"; children: ReactNode }) {
+  const [style, setStyle] = useState<CSSProperties>({ position: "fixed", visibility: "hidden", left: 0, top: 0 });
+  useLayoutEffect(() => {
+    const place = () => {
+      const anchor = props.pop.ref.current?.getBoundingClientRect();
+      const menu = props.pop.menuRef.current;
+      if (!anchor || !menu) return;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const width = Math.min(props.width, vw - 16);
+      const left = Math.min(Math.max(8, anchor.left), vw - width - 8);
+      const h = menu.scrollHeight;
+      const above = anchor.top - 8;
+      const below = vh - anchor.bottom - 8;
+      const up = props.placement === "down" ? below < h + 6 && above > below : above >= h + 6 || above > below;
+      setStyle({
+        position: "fixed",
+        left,
+        width,
+        maxHeight: Math.max(160, (up ? above : below) - 6),
+        overflowY: "auto",
+        ...(up ? { bottom: vh - anchor.top + 6 } : { top: anchor.bottom + 6 }),
+      });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return createPortal(
+    <div ref={props.pop.menuRef} className={menuClass} style={style}>
+      {props.children}
+    </div>,
+    document.body,
+  );
 }
 
 const chipClass =
   "flex h-7 items-center gap-1.5 rounded-lg px-2 text-[12px] text-ink-2 transition hover:bg-soft data-[open=true]:bg-soft";
-const menuClass = "absolute z-40 rounded-xl bg-surface p-1.5 shadow-[0_18px_44px_-12px_rgba(0,0,0,.35),0_0_0_1px_rgba(0,0,0,.07)] animate-in";
+const menuClass = "z-[60] rounded-xl border border-line bg-surface p-1.5 shadow-[0_18px_44px_-12px_rgba(0,0,0,.35),0_0_0_1px_rgba(0,0,0,.07)] animate-in";
 
 function Caret() {
   return (
@@ -103,7 +153,6 @@ export function AgentControls(props: {
   const { models, providerDefault, loading, error, reload } = useModels(v.provider);
   const model = models.find((m) => m.id === v.model) ?? (!v.model ? providerDefault : undefined);
   const provider = PROVIDERS.find((p) => p.id === v.provider)!;
-  const pos = props.placement === "down" ? "top-9" : "bottom-9";
   const modelMenu = usePopover();
   const effortMenu = usePopover();
   const [savedDefault, setSavedDefault] = useState(false);
@@ -126,7 +175,7 @@ export function AgentControls(props: {
           <Caret />
         </button>
         {modelMenu.open && (
-          <div className={`${menuClass} ${pos} left-0 w-[300px]`}>
+          <Floating pop={modelMenu} width={300} placement={props.placement}>
             {props.lockProvider ? (
               <div className="flex items-center gap-2 px-2 pb-1.5 pt-1 text-[11.5px] text-muted">
                 <span className="font-semibold text-ink-2">{provider.label}</span>
@@ -205,7 +254,7 @@ export function AgentControls(props: {
                 </button>
               )}
             </div>
-          </div>
+          </Floating>
         )}
       </div>
 
@@ -217,7 +266,7 @@ export function AgentControls(props: {
             <Caret />
           </button>
           {effortMenu.open && (
-            <div className={`${menuClass} ${pos} ${props.placement === "down" ? "left-0" : "right-0"} w-[240px]`}>
+            <Floating pop={effortMenu} width={240} placement={props.placement}>
               <div className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Reasoning</div>
               <MenuItem
                 active={!v.effort}
@@ -240,13 +289,13 @@ export function AgentControls(props: {
                   }}
                 />
               ))}
-            </div>
+            </Floating>
           )}
         </div>
       )}
 
       {/* Access */}
-      <AccessMenu value={v.access ?? DEFAULT_ACCESS} provider={provider.label} pos={pos} placement={props.placement} onChange={(access) => props.onChange({ ...v, access })} />
+      <AccessMenu value={v.access ?? DEFAULT_ACCESS} provider={provider.label} placement={props.placement} onChange={(access) => props.onChange({ ...v, access })} />
 
       {/* Fast mode */}
       {model?.fast && (
@@ -270,7 +319,7 @@ const ACCESS: { id: AccessLevel; label: string; icon: string; hint: string }[] =
   { id: "full", label: "Full access", icon: "⚠", hint: "No limits: can run anything and change any file on this computer. Use with care." },
 ];
 
-function AccessMenu(props: { value: AccessLevel; provider: string; pos: string; placement?: "up" | "down"; onChange: (a: AccessLevel) => void }) {
+function AccessMenu(props: { value: AccessLevel; provider: string; placement?: "up" | "down"; onChange: (a: AccessLevel) => void }) {
   const menu = usePopover();
   const current = ACCESS.find((a) => a.id === props.value) ?? ACCESS[0];
   const danger = props.value === "full";
@@ -288,7 +337,7 @@ function AccessMenu(props: { value: AccessLevel; provider: string; pos: string; 
         <Caret />
       </button>
       {menu.open && (
-        <div className={`${menuClass} ${props.pos} ${props.placement === "down" ? "left-0" : "right-0"} w-[290px]`}>
+        <Floating pop={menu} width={290} placement={props.placement}>
           <div className="px-2 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">What {props.provider} may do</div>
           {ACCESS.map((a) => (
             <button
@@ -307,7 +356,7 @@ function AccessMenu(props: { value: AccessLevel; provider: string; pos: string; 
               <span className="mt-0.5 w-3.5 flex-none">{props.value === a.id && <Check size={13} className="text-accent" />}</span>
             </button>
           ))}
-        </div>
+        </Floating>
       )}
     </div>
   );

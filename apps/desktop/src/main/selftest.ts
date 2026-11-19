@@ -326,6 +326,7 @@ export async function runSelftest(out: string): Promise<void> {
     }
     if (mode === "formats") await formatsCase(out, report);
     if (mode === "inspect") await inspectCase(out, report);
+    if (mode === "demo") await demoCase(report);
     if (mode === "guided") {
       // A guided first message: the assistant should ask through the question card, then build.
       const { answerQuestions } = await import("./agents/approvals");
@@ -633,5 +634,67 @@ class Clash(StudioScene):
       const frames = await video.frames(v.manifest.id, "01_clash", steps.map((s) => s.t));
       fs.writeFileSync(join(out, "video-sheet.png"), await contactSheet(frames.map((f, i) => ({ png: f.png, label: `${steps[i].t.toFixed(1)} s · ${steps[i].label} · line ${steps[i].line}` }))));
     }
+  }
+}
+
+/**
+ * Showcase projects for the README, made the real way: the assistant builds each one from a
+ * teacher-style prompt, then (videos and web animations) writes and voices the narration.
+ * STUDIO_SELFTEST_DEMO picks which: "web", "video", "lab" (comma-separated; default all).
+ */
+async function demoCase(report: Record<string, unknown>) {
+  const { autoNarrate } = await import("./narrate");
+  const { agentDefaults } = await import("./agents/models");
+  const { VOICES } = await import("./voice");
+  const which = (process.env.STUDIO_SELFTEST_DEMO ?? "web,video,lab").split(",");
+  const demos: { key: string; kind: ProjectKind; aspect?: "vertical"; title: string; prompt: string; length: "short" | "explainer" }[] = [
+    {
+      key: "web",
+      kind: "web",
+      title: "Why the derivative of sine is cosine",
+      length: "explainer",
+      prompt:
+        "For a Year 12 class meeting calculus of trig functions: show why the derivative of sin x is cos x. Start with a point moving round the unit circle and its height tracing sin x, then show the slope of sin x at several points and plot those slopes, which trace out cos x. End with d/dx sin x = cos x. About 4 scenes, clean and uncluttered.",
+    },
+    {
+      key: "video",
+      kind: "video",
+      aspect: "vertical",
+      title: "Pythagoras in 30 seconds",
+      length: "short",
+      prompt:
+        "A vertical 30-second reel proving the Pythagorean theorem by rearrangement: four copies of a right triangle inside a big square, first leaving a tilted square of area c², then rearranged to leave two squares a² and b². End on a² + b² = c². Bold and simple for phones, 3 scenes.",
+    },
+    {
+      key: "lab",
+      kind: "lab",
+      title: "Projectile motion lab",
+      length: "explainer",
+      prompt:
+        "A projectile motion lab for Year 10: sliders for launch angle and speed, a live trajectory on a canvas with the ground and a target, readouts for range, maximum height and flight time, and a 'predict, then launch' challenge where students guess the angle that hits the target. Clean, friendly, works on phones.",
+    },
+  ];
+  for (const d of demos.filter((x) => which.includes(x.key))) {
+    const p = await projects.create({ kind: d.kind, prompt: d.prompt, length: d.length, title: d.title, aspect: d.aspect, agent: agentDefaults() });
+    const id = p.manifest.id;
+    const t0 = Date.now();
+    const done = await new Promise<string>((resolve) => {
+      void sendToAgent({ projectId: id, text: d.prompt }, (e) => {
+        if (e.type === "step" && e.status === "running") console.log(`[${d.key}] ${e.label} ${e.detail ?? ""}`);
+        if (e.type === "turn.completed") resolve("completed");
+        if (e.type === "turn.failed") resolve(`failed: ${e.error}`);
+      });
+    });
+    const entry: Record<string, unknown> = { id, dir: p.dir, build: done, minutes: +((Date.now() - t0) / 60000).toFixed(1) };
+    if (done === "completed" && d.kind !== "lab") {
+      try {
+        const r = await autoNarrate(id, { voice: VOICES[0].id, speed: 1 }, (e) => e.type === "step" && e.status === "running" && console.log(`[${d.key}:voice] ${e.label}`), (m) => console.log(`[${d.key}:voice] ${m}`));
+        entry.narration = r;
+      } catch (e) {
+        entry.narration = String(e);
+      }
+    }
+    entry.scenes = projects.manifest(id).scenes.map((s) => s.id);
+    report[`demo_${d.key}`] = entry;
   }
 }

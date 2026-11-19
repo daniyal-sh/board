@@ -24,6 +24,8 @@ extraResources:
 # Releases are uploaded to GitHub by hand or CI; the app itself never checks for updates.
 publish:
   provider: github
+  owner: daniyal-sh
+  repo: board
 win:
   target: [nsis]
   files:

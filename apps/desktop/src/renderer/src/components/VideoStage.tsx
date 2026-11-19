@@ -191,9 +191,9 @@ export function VideoStage(props: {
   if (env && !env.ready) return <VideoSetup onReady={setEnv} />;
 
   return (
-    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] gap-3 px-[18px] py-4">
-      <div className="flex items-center gap-2">
-        <div className="seg">
+    <div className="grid h-full min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden px-[18px] py-4">
+      <div className="flex min-w-0 items-center gap-2">
+        <div className="seg flex-none">
           <button data-on={mode === "scene"} onClick={() => setMode("scene")}>
             This scene
           </button>
@@ -201,7 +201,7 @@ export function VideoStage(props: {
             Whole video
           </button>
         </div>
-        <span className="truncate text-[12px] text-muted">
+        <span className="min-w-0 flex-1 truncate text-[12px] text-muted">
           {mode === "full"
             ? full?.ok
               ? `${segments.length} scene${segments.length === 1 ? "" : "s"} · ${fmt(full.duration)}${currentSegment ? ` · now: ${currentSegment.title}` : ""}`
@@ -217,7 +217,7 @@ export function VideoStage(props: {
           </span>
         )}
         <button
-          className="btn btn-ghost btn-sm"
+          className="btn btn-ghost btn-sm flex-none"
           disabled={Boolean(working) || (mode === "scene" && !props.scene)}
           onClick={() => void (mode === "full" ? loadFull() : renderNow())}
           title={mode === "full" ? "Re-render changed scenes and rebuild" : "Render this scene again"}
@@ -228,7 +228,7 @@ export function VideoStage(props: {
 
       <div className="flex min-h-0 items-center justify-center">
         <div
-          className={`relative overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] ${props.aspect === "vertical" ? "h-full max-w-full" : "aspect-video max-h-full w-full"}`}
+          className={`@container relative overflow-hidden rounded-[14px] bg-stage shadow-[0_18px_40px_-20px_rgba(0,0,0,.6)] ${props.aspect === "vertical" ? "h-full max-w-full" : "aspect-video max-h-full w-full"}`}
           style={props.aspect === "vertical" ? { aspectRatio: "9 / 16" } : undefined}
           // Read by the assistant's get_view tool: what the teacher is looking at right now.
           data-agent-view
@@ -271,9 +271,9 @@ export function VideoStage(props: {
                 />
               )}
               {mode === "full" && currentSegment && (
-                <span className="glass absolute left-3 top-3 rounded-lg px-2.5 py-1 text-[11px]">{currentSegment.title}</span>
+                <span className="glass absolute left-3 top-3 max-w-[calc(100%-24px)] truncate rounded-lg px-2.5 py-1 text-[11px] @lg:max-w-[55%]">{currentSegment.title}</span>
               )}
-              <span className="glass absolute right-3 top-3 rounded-lg px-2.5 py-1 text-[11px]">Click anything to change it</span>
+              <span className="glass absolute right-3 top-3 hidden rounded-lg px-2.5 py-1 text-[11px] @lg:block">Click anything to change it</span>
               <StartOverlay show={!playing && time < 0.05} onPlay={toggle} />
               <Transport playing={playing} time={time} duration={duration} segments={chapters} onToggle={toggle} onSeek={seek} />
             </>
@@ -314,7 +314,7 @@ export function VideoStage(props: {
           <b className="text-[12.5px] font-semibold text-ink">Timeline</b>
           <span>{duration ? "Click a block to jump there · space plays, [ ] jumps scenes" : "Appears after the first render"}</span>
         </div>
-        <div className="grid grid-cols-[70px_1fr] gap-x-2.5">
+        <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-x-2.5">
           <div>
             {mode === "full" && <div className="mb-1.5 flex h-[46px] items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-ink" />Scenes</div>}
             <div className="mb-1.5 flex h-6 items-center gap-1.5 text-[11.5px] text-muted"><i className="block h-[7px] w-[7px] rounded-sm bg-manim-blue" />Animation</div>

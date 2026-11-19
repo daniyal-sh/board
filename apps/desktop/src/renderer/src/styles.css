@@ -4,7 +4,7 @@
 @import "@fontsource/geist-mono/500.css";
 
 /*
- * Apollo Study Space, adapted for Board (see daniyal-sh/apollo DESIGN.md):
+ * Apollo Study Space, adapted for Board (Apollo's design system):
  * off-white canvas, white panels with hairline zinc borders, graphite text, one solid indigo
  * action per screen, blue for the assistant, solid (never translucent) tinted surfaces.
  * Dark mode swaps the variables under html.dark.
@@ -179,7 +179,7 @@ button:disabled {
     @apply inline-flex gap-[2px] rounded-[9px] bg-soft p-[3px];
   }
   .seg > button {
-    @apply inline-flex h-[28px] items-center gap-1.5 rounded-[7px] px-[11px] text-[13px] font-medium text-muted;
+    @apply inline-flex h-[28px] items-center gap-1.5 rounded-[7px] px-[11px] text-[13px] font-medium whitespace-nowrap text-muted;
   }
   .seg > button[data-on="true"] {
     @apply bg-surface text-ink;
@@ -190,7 +190,7 @@ button:disabled {
     @apply flex gap-5 border-b border-line;
   }
   .tabs > button {
-    @apply -mb-px border-b-2 border-transparent pt-2.5 pb-[9px] text-[13.5px] font-medium text-muted;
+    @apply -mb-px border-b-2 border-transparent pt-2.5 pb-[9px] text-[13.5px] font-medium whitespace-nowrap text-muted;
   }
   .tabs > button[data-on="true"] {
     @apply border-accent text-ink;

@@ -211,7 +211,8 @@ export function Studio(props: {
       </header>
 
       <div className="grid min-h-0" style={{ gridTemplateColumns: `${isLab ? 0 : layout.left}px 0px minmax(0,1fr) 0px ${chatOpen ? layout.right : 0}px` }}>
-      <aside className="overflow-auto border-r border-line bg-surface px-2.5 py-3.5" hidden={isLab}>
+      {/* Labs have no scenes. The cell stays in the grid (0 px wide) so the columns line up. */}
+      <aside className={isLab ? "invisible overflow-hidden" : "overflow-auto border-r border-line bg-surface px-2.5 py-3.5"} aria-hidden={isLab}>
         <h3 className="mx-1.5 mb-2 mt-0 text-[12px] font-medium text-muted">Scenes</h3>
         {scenes.length === 0 && (
           <div className="mx-1 text-[12.5px] leading-snug text-muted">
@@ -246,7 +247,7 @@ export function Studio(props: {
       </aside>
       {isLab ? <div /> : <Splitter side="left" onDrag={(dx) => resize("left", dx)} onReset={() => resetSide("left")} />}
 
-      <section className="relative min-h-0 min-w-0">
+      <section className="relative min-h-0 min-w-0 overflow-hidden">
         {voicing && (
           <div className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink px-3.5 py-1.5 text-[12px] text-on-ink shadow-2 animate-in">
             <span className="spinner" /> {voicing}
@@ -290,7 +291,7 @@ export function Studio(props: {
       </section>
       {chatOpen ? <Splitter side="right" onDrag={(dx) => resize("right", -dx)} onReset={() => resetSide("right")} /> : <div />}
 
-      <div className="min-h-0 overflow-hidden" hidden={!chatOpen}>
+      <div className={chatOpen ? "min-h-0 overflow-hidden" : "invisible min-h-0 overflow-hidden"}>
       <Chat
         projectId={manifest.id}
         agent={manifest.agent}

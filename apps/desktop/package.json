@@ -2,6 +2,8 @@
   "name": "@studio/desktop",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://apollolearn.app",
+  "repository": "github:daniyal-sh/board",
   "description": "Board by Apollo: make Manim videos, web animations and interactive Labs with your own Claude Code or Codex",
   "license": "MIT",
   "type": "module",
