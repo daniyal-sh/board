@@ -38,6 +38,10 @@ mac:
   files:
     - "!node_modules/onnxruntime-node/bin/napi-v3/{win32,linux}/**"
   category: public.app-category.education
+  # No Apple certificate yet: ad-hoc sign so Apple Silicon Macs can open it (right-click > Open the
+  # first time). Remove these two lines once CSC_LINK is set up for real signing and notarization.
+  identity: "-"
+  hardenedRuntime: false
   extendInfo:
     NSMicrophoneUsageDescription: Board records your voice for narration. Recordings stay on this computer.
 linux:
@@ -45,3 +49,5 @@ linux:
   files:
     - "!node_modules/onnxruntime-node/bin/napi-v3/{win32,darwin}/**"
   category: Education
+  maintainer: The Apollo team
+  vendor: Apollo
