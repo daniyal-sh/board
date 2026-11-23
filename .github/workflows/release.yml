@@ -23,6 +23,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+        env:
+          # Board runs its voice models on the CPU; the CUDA download 404s on Linux runners.
+          ONNXRUNTIME_NODE_INSTALL_CUDA: skip
       - run: pnpm --filter @studio/desktop vendor
       - run: pnpm --filter @studio/desktop build
       - run: pnpm --filter @studio/desktop exec electron-builder --publish always
