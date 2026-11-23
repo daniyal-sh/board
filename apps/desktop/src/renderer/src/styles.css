@@ -47,6 +47,13 @@
   --color-manim-yellow: #ffe14d;
   --color-manim-red: #f26b5b;
   --color-manim-green: #5db37a;
+  /* Voice-over: cues (amber), AI voice (violet), the teacher's own voice (red). */
+  --color-cue: #d98a1c;
+  --color-cue-soft: #fbf0de;
+  --color-voice: #6d5ef5;
+  --color-voice-soft: #ecebfd;
+  --color-rec: #e5484d;
+  --color-rec-soft: #fdecec;
   --font-sans: "Figtree Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -87,6 +94,12 @@ html.dark {
   --color-warn: #fbbf24;
   --color-warn-soft: #332a17;
   --color-warn-line: #6a5321;
+  --color-cue: #f0a63a;
+  --color-cue-soft: #352a17;
+  --color-voice: #8b80ff;
+  --color-voice-soft: #26244a;
+  --color-rec: #ff6369;
+  --color-rec-soft: #3a1f22;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-2: 0 18px 40px -16px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
@@ -194,6 +207,37 @@ button:disabled {
   }
   .tabs > button[data-on="true"] {
     @apply border-accent text-ink;
+  }
+  /* A {{mark:name}} cue inside a narration script. */
+  .cue-chip {
+    @apply mx-[2px] inline-flex h-[1.45em] items-center gap-[5px] rounded-[6px] px-[6px] align-[0.08em] text-[0.72em] font-semibold whitespace-nowrap select-all;
+    background: var(--color-cue-soft);
+    color: var(--color-warn);
+    line-height: 1;
+  }
+  .cue-chip::before {
+    content: "";
+    width: 0.55em;
+    height: 0.55em;
+    flex: none;
+    border-radius: 1.5px;
+    transform: rotate(45deg);
+    background: var(--color-cue);
+  }
+  /* Small toggles in the transport bar (speed, captions, loop). */
+  .pill {
+    @apply inline-flex h-7 flex-none items-center gap-1.5 rounded-[7px] px-2 text-[12.5px] font-medium whitespace-nowrap text-ink-2 transition-colors;
+  }
+  .pill:hover:not(:disabled) {
+    background: var(--color-soft);
+  }
+  .pill[data-on="true"] {
+    @apply bg-accent-soft text-accent-ink;
+  }
+  /* A key to press, e.g. Space. */
+  .kbd {
+    @apply inline-flex h-[20px] min-w-[20px] items-center justify-center rounded-[5px] border border-line bg-surface px-1.5 align-[1px] font-mono text-[11px] font-medium text-ink-2;
+    box-shadow: 0 1px 0 var(--color-line);
   }
   .chip {
     @apply rounded-[6px] px-[7px] py-[2px] font-mono text-[11px] font-medium;

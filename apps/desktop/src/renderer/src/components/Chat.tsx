@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentSettings, ApprovalDecision, ApprovalRequest, ChatTurn, ProviderStatus, QuestionRequest, Selection } from "@studio/shared";
 import { studio } from "../lib/api";
-import { ArrowUp, Check, Stop, Undo } from "./Icons";
+import { ArrowUp, Check, Close, Stop, Undo } from "./Icons";
 import { Markdown } from "./Markdown";
 import { AgentControls } from "./ModelPicker";
 
@@ -225,11 +225,10 @@ export function Chat(props: {
   onClearSelection: () => void;
   onSend: (text: string) => void;
   onAgentChange: (a: AgentSettings) => void;
-  /** Narration panel for videos and web animations. */
-  narration?: React.ReactNode;
+  /** Hide the panel. */
+  onClose?: () => void;
 }) {
   const [text, setText] = useState("");
-  const [tab, setTab] = useState<"chat" | "narration">("chat");
   /** Last undo, so it can be redone. Cleared when a new turn starts. */
   const [undone, setUndone] = useState<{ undone: string; message: string } | null>(null);
   const [undoBusy, setUndoBusy] = useState(false);
@@ -242,7 +241,6 @@ export function Chat(props: {
 
   useEffect(() => {
     if (props.selection) {
-      setTab("chat");
       input.current?.focus();
     }
   }, [props.selection]);
@@ -282,31 +280,25 @@ export function Chat(props: {
 
   return (
     <aside className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] border-l border-line bg-surface">
-      <div>
-        <div className="tabs px-4">
-          <button data-on={tab === "chat"} onClick={() => setTab("chat")}>
-            Chat
-          </button>
-          {props.narration && (
-            <button data-on={tab === "narration"} onClick={() => setTab("narration")}>
-              Narration
+      <div className="border-b border-line-2 px-4 pb-2.5 pt-2.5">
+        <div className="flex items-center gap-2">
+          <b className="text-[13.5px] font-semibold">Assistant</b>
+          <span className="flex-1" />
+          {props.onClose && (
+            <button className="icon-btn h-7 w-7" title="Hide the assistant" onClick={props.onClose}>
+              <Close size={14} />
             </button>
           )}
         </div>
-        {tab === "chat" && (
-          <div className="flex items-center gap-1.5 px-4 pt-2.5 text-[12px] text-muted">
-            <i className="h-2 w-2 flex-none rounded-full bg-assistant" />
-            <span className="truncate">
-              Can see: {props.selection ? `${props.selection.part} (selected)` : props.sceneLabel ? props.sceneLabel.replace(/^Scene: /, "scene “") + "”" : "the whole project"}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 text-[12px] text-muted">
+          <i className="h-2 w-2 flex-none rounded-full bg-assistant" />
+          <span className="truncate">
+            Can see: {props.selection ? `${props.selection.part} (selected)` : props.sceneLabel ? props.sceneLabel.replace(/^Scene: /, "scene “") + "”" : "the whole project"}
+          </span>
+        </div>
       </div>
 
-      {tab === "narration" && props.narration ? (
-        <div className="min-h-0 overflow-auto px-4 pb-4 pt-1.5">{props.narration}</div>
-      ) : (
-        <div ref={feed} className="flex min-h-0 flex-col gap-4 overflow-auto px-4 pb-4 pt-1.5">
+        <div ref={feed} className="flex min-h-0 flex-col gap-4 overflow-auto px-4 pb-4 pt-3">
           {props.turns.length === 0 && (
             <div className="mt-6 text-center text-[13px] text-muted">
               Describe what you want, or click <b className="font-medium text-ink-2">Select</b> and pick something in the preview to change it.
@@ -343,7 +335,6 @@ export function Chat(props: {
           ))}
           {props.error && <div className="rounded-lg bg-bad-soft px-2.5 py-1.5 text-[12px] text-bad">{props.error}</div>}
         </div>
-      )}
 
       <div className="px-3.5 pb-3.5 pt-1">
         {/* One clear undo for the last change (and redo right after) */}
