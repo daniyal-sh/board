@@ -6,6 +6,7 @@
   "repository": "github:daniyal-sh/board",
   "description": "Board by Apollo: make Manim videos, web animations and interactive Labs with your own Claude Code or Codex",
   "license": "MIT",
+  "author": "The Apollo team",
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
