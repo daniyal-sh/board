@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Board Studio v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f3f5;--surface:#fff;--surface-2:#f6f6f8;--soft:#e9e9ed;--ink:#27272a;--on-ink:#fff;--ink-2:#3f3f46;--muted:#5c5c65;--faint:#8b8b95;
+  --line:#d3d3d9;--line-2:#e4e4e8;--accent:#4338ca;--accent-ink:#3730a3;--accent-soft:#eeedfa;--accent-line:#c7c3ee;
+  --assistant:#1d4ed8;--assistant-soft:#ebf0fc;--context:#0f766e;--context-soft:#e8f2f1;--stage:#0e0e12;
+  --good:#047857;--good-soft:#e6f2ee;--bad:#b91c1c;--bad-soft:#f8e9e9;--warn:#9a4a08;--warn-soft:#f5ede6;--cue:#d98a1c;--cue-soft:#fbf0de;
+  --rec:#e5484d;--rec-soft:#fdecec;--voice-ai:#6d5ef5;--voice-ai-soft:#ecebfd;
+  --shadow-1:0 1px 2px rgba(0,0,0,.04);--shadow-2:0 18px 40px -16px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.04);
+  --sans:"Figtree",ui-sans-serif,system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,monospace;
+}
+:root[data-theme="dark"]{
+  --bg:#151517;--surface:#1c1c1f;--surface-2:#212125;--soft:#2a2a2f;--ink:#f4f4f5;--on-ink:#18181b;--ink-2:#d4d4d8;--muted:#a1a1aa;--faint:#71717a;
+  --line:#303035;--line-2:#28282d;--accent:#5b50f0;--accent-ink:#a9a3ff;--accent-soft:#26244a;--accent-line:#403b86;
+  --assistant:#60a5fa;--assistant-soft:#1d2a3d;--context:#5eccc4;--context-soft:#1c2f2e;
+  --good:#34d399;--good-soft:#1a2e27;--bad:#f87171;--bad-soft:#351f20;--warn:#fbbf24;--warn-soft:#332a17;--cue:#f0a63a;--cue-soft:#352a17;
+  --rec:#ff6369;--rec-soft:#3a1f22;--voice-ai:#8b80ff;--voice-ai-soft:#26244a;
+  --shadow-1:0 1px 2px rgba(0,0,0,.3);--shadow-2:0 18px 40px -16px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#151517;--surface:#1c1c1f;--surface-2:#212125;--soft:#2a2a2f;--ink:#f4f4f5;--on-ink:#18181b;--ink-2:#d4d4d8;--muted:#a1a1aa;--faint:#71717a;
+  --line:#303035;--line-2:#28282d;--accent:#5b50f0;--accent-ink:#a9a3ff;--accent-soft:#26244a;--accent-line:#403b86;
+  --assistant:#60a5fa;--assistant-soft:#1d2a3d;--context:#5eccc4;--context-soft:#1c2f2e;
+  --good:#34d399;--good-soft:#1a2e27;--bad:#f87171;--bad-soft:#351f20;--warn:#fbbf24;--warn-soft:#332a17;--cue:#f0a63a;--cue-soft:#352a17;
+  --rec:#ff6369;--rec-soft:#3a1f22;--voice-ai:#8b80ff;--voice-ai-soft:#26244a;
+  --shadow-1:0 1px 2px rgba(0,0,0,.3);--shadow-2:0 18px 40px -16px rgba(0,0,0,.7),0 0 0 1px rgba(255,255,255,.04);
+}}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:#d9d9de;color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+:root[data-theme="dark"] body{background:#0b0b0d}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.mono{font-family:var(--mono)}
+
+/* ---------- mockup chrome ---------- */
+.mbar{position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 16px;background:#18181b;color:#fff;font-size:13px}
+.mbar b{margin-right:8px;font-weight:600}
+.mbar button{padding:5px 11px;border-radius:7px;color:#c4c4cc;font-weight:500}
+.mbar button[data-on="true"]{background:#fff;color:#18181b}
+.mbar .sp{flex:1}
+.stagewrap{padding:18px 16px 28px;display:flex;justify-content:center}
+.win{width:min(1440px,100%);height:min(900px,calc(100vh - 92px));min-height:760px;background:var(--bg);border-radius:12px;overflow:hidden;box-shadow:0 30px 80px -30px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.08);display:none;position:relative}
+.win.on{display:grid}
+.notes{position:fixed;right:18px;bottom:18px;z-index:120;width:340px;max-height:60vh;overflow:auto;background:#18181b;color:#e4e4e7;border-radius:14px;padding:14px 16px 6px;font-size:12.5px;line-height:1.5;box-shadow:0 20px 50px -10px rgba(0,0,0,.5)}
+.notes h4{margin:0 0 6px;font-size:13px;color:#fff}
+.notes ol{margin:0;padding-left:18px}.notes li{margin-bottom:6px}
+.notes.hide{display:none}
+
+/* ---------- shared UI ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:13.5px;font-weight:600;white-space:nowrap;color:var(--ink)}
+.btn:hover{background:var(--surface-2)}
+.btn.sm{height:30px;padding:0 10px;font-size:12.5px}
+.btn.accent{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn.ghost:hover{background:var(--soft)}
+.btn.rec{background:var(--rec);border-color:var(--rec);color:#fff}
+.ib{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;color:var(--muted)}
+.ib:hover,.ib[data-on="true"]{background:var(--soft);color:var(--ink)}
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:9px;background:var(--soft)}
+.seg>button{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:7px;font-size:13px;font-weight:500;color:var(--muted);white-space:nowrap}
+.seg>button[data-on="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-1),0 0 0 1px var(--line)}
+.tag{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap}
+.kbd{font-family:var(--mono);font-size:10.5px;padding:1px 5px;border-radius:4px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex:none}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-1)}
+.muted{color:var(--muted)}.faint{color:var(--faint)}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.sp{flex:1}
+.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+svg{flex:none}
+
+/* ---------- studio shell ---------- */
+.studio{grid-template-rows:52px minmax(0,1fr)}
+.hdr{display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--surface);border-bottom:1px solid var(--line);min-width:0}
+.hdr .title{font-size:14px;font-weight:600}
+.hdr .ws{position:absolute;left:50%;transform:translateX(-50%)}
+.body{display:grid;min-height:0;grid-template-columns:minmax(0,1fr) 1px var(--right,360px)}
+.body.noright{--right:0px}
+.vsplit{background:var(--line)}
+.main{display:grid;grid-template-rows:minmax(0,1fr) auto;min-height:0;min-width:0}
+
+/* stage */
+.stagearea{display:grid;grid-template-rows:auto minmax(0,1fr);gap:10px;padding:12px 18px 12px;min-height:0;min-width:0}
+.stagebar{display:flex;align-items:center;gap:8px;min-width:0}
+.scenepick{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px 0 6px;border-radius:9px;border:1px solid var(--line);background:var(--surface);font-size:13px;font-weight:600;min-width:0;max-width:340px}
+.scenepick .n{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--stage);color:#fff;font:500 11px var(--mono)}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.screen{display:flex;align-items:center;justify-content:center;min-height:0}
+.canvas{position:relative;aspect-ratio:16/9;max-height:100%;width:100%;background:var(--stage);border-radius:12px;overflow:hidden;box-shadow:0 18px 40px -20px rgba(0,0,0,.6)}
+.canvas svg.art{position:absolute;inset:0;width:100%;height:100%}
+.caption{position:absolute;left:50%;bottom:5%;transform:translateX(-50%);max-width:78%;text-align:center;font-size:clamp(12px,1.6vw,19px);line-height:1.35;color:#fff;background:rgba(0,0,0,.55);padding:4px 12px;border-radius:6px}
+.caption .w-now{color:#ffe14d}
+.hovtools{position:absolute;top:10px;right:10px;display:flex;gap:4px}
+.glass{background:rgba(20,20,26,.62);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.08);color:#fff;border-radius:8px}
+.glass.ib{color:#fff;width:30px;height:30px}
+.selbox{position:absolute;border:1.5px solid #ffe14d;border-radius:6px;box-shadow:0 0 0 4px rgba(255,225,77,.15)}
+.selbox i{position:absolute;top:-24px;left:-1px;font:500 11px var(--sans);font-style:normal;background:#ffe14d;color:#1a1a00;padding:2px 7px;border-radius:5px;white-space:nowrap}
+
+/* ---------- timeline dock ---------- */
+.dock{border-top:1px solid var(--line);background:var(--surface);min-width:0;display:grid;grid-template-rows:44px auto}
+.transport{display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--line-2);min-width:0}
+.play{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--on-ink)}
+.tc{font:500 12.5px var(--mono);color:var(--ink);padding:0 6px;white-space:nowrap}
+.tc span{color:var(--faint)}
+.pill{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 9px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.pill:hover,.pill[data-on="true"]{background:var(--soft)}
+.pill[data-on="true"]{color:var(--accent-ink)}
+.zoom{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.zoom input{width:110px;accent-color:var(--accent)}
+.tracks{position:relative;display:grid;grid-template-columns:92px minmax(0,1fr);padding:0 12px 10px 0;user-select:none}
+.labels{display:grid;grid-template-rows:22px 54px 26px 16px 40px;row-gap:6px;padding-left:12px;font-size:11.5px;color:var(--muted)}
+.labels>div{display:flex;align-items:center;gap:6px}
+.lanes{position:relative;display:grid;grid-template-rows:22px 54px 26px 16px 40px;row-gap:6px;min-width:0}
+.ruler{position:relative;border-bottom:1px solid var(--line-2);font:10.5px var(--mono);color:var(--faint)}
+.ruler i{position:absolute;bottom:0;width:1px;background:var(--line)}
+.ruler span{position:absolute;top:2px;transform:translateX(3px)}
+.lane{position:relative;border-radius:7px;background:var(--surface-2)}
+.scene-tile{position:absolute;top:2px;bottom:2px;border-radius:7px;overflow:hidden;background:var(--stage) center/auto 100% repeat-x;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+.scene-tile b{position:absolute;inset:auto 0 0 0;padding:12px 7px 3px;font-size:11px;font-weight:600;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.8));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scene-tile em{position:absolute;top:4px;right:5px;font:500 10px var(--mono);font-style:normal;color:#fff;background:rgba(0,0,0,.55);padding:0 4px;border-radius:4px}
+.scene-tile.on{box-shadow:0 0 0 2px var(--accent)}
+.clip{position:absolute;top:3px;bottom:3px;border-radius:5px;padding:0 6px;font-size:10.5px;font-weight:600;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:color-mix(in srgb,var(--context) 13%,var(--surface));color:var(--context);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--context) 35%,var(--surface))}
+.clip.alt{background:color-mix(in srgb,var(--assistant) 11%,var(--surface));color:var(--assistant);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--assistant) 32%,var(--surface))}
+.clip.sel{box-shadow:0 0 0 2px var(--accent);z-index:2}
+.wait{position:absolute;top:7px;bottom:7px;border-radius:4px;background:repeating-linear-gradient(135deg,transparent 0 4px,color-mix(in srgb,var(--cue) 28%,transparent) 4px 6px)}
+.cue{position:absolute;top:2px;width:11px;height:11px;transform:translateX(-50%) rotate(45deg);background:var(--cue);border-radius:2px;box-shadow:0 0 0 2px var(--surface)}
+.cue-line{position:absolute;top:8px;height:62px;width:0;border-left:1px dashed color-mix(in srgb,var(--cue) 60%,transparent)}
+.wave{position:absolute;inset:0;border-radius:7px;overflow:hidden}
+.wave canvas{width:100%;height:100%;display:block}
+.vclip{position:absolute;top:2px;bottom:2px;border-radius:6px;overflow:hidden}
+.vclip.ai{background:color-mix(in srgb,var(--voice-ai) 12%,var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--voice-ai) 35%,var(--surface))}
+.vclip.me{background:color-mix(in srgb,var(--rec) 10%,var(--surface));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--rec) 35%,var(--surface))}
+.vclip .lbl{position:absolute;left:6px;top:2px;font-size:10px;font-weight:600;z-index:1}
+.vclip.ai .lbl{color:var(--voice-ai)}.vclip.me .lbl{color:var(--rec)}
+.vclip.stale{box-shadow:inset 0 0 0 1px var(--cue)}
+.ph{position:absolute;top:0;bottom:-4px;width:0;z-index:5;pointer-events:none}
+.ph::before{content:"";position:absolute;top:0;bottom:0;left:-1px;width:2px;background:var(--ink);border-radius:2px}
+.ph::after{content:"";position:absolute;top:-1px;left:-6px;width:12px;height:12px;background:var(--ink);clip-path:polygon(0 0,100% 0,100% 55%,50% 100%,0 55%)}
+.hoverline{position:absolute;top:0;bottom:-4px;width:0;z-index:4;pointer-events:none}
+.hoverline::before{content:"";position:absolute;top:0;bottom:0;left:0;width:1px;background:color-mix(in srgb,var(--ink) 40%,transparent)}
+.peek{position:absolute;bottom:calc(100% + 6px);left:-64px;width:128px;border-radius:8px;overflow:hidden;background:var(--stage);box-shadow:var(--shadow-2)}
+.peek span{display:block;text-align:center;font:500 10.5px var(--mono);color:#fff;background:#000;padding:2px 0}
+.popover{position:absolute;z-index:20;width:268px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-2);padding:10px 12px;font-size:12.5px}
+.popover h5{margin:0 0 2px;font-size:13px}
+.popover .act{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+
+/* ---------- assistant ---------- */
+.side{display:grid;grid-template-rows:46px minmax(0,1fr) auto;background:var(--surface);min-height:0;min-width:0;overflow:hidden}
+.side .top{display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--line-2);font-weight:600;font-size:13.5px}
+.msgs{overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px;font-size:13.5px;line-height:1.55}
+.you{align-self:flex-end;max-width:85%;background:var(--surface-2);border:1px solid var(--line-2);border-radius:12px 12px 4px 12px;padding:8px 11px}
+.you .ctx{display:flex;gap:4px;margin-bottom:4px}
+.steps{border:1px solid var(--line-2);border-radius:10px;padding:6px 10px;font-size:12.5px;color:var(--muted)}
+.steps div{display:flex;align-items:center;gap:8px;padding:2px 0}
+.check{color:var(--good)}
+.composer{margin:0 12px 12px;border:1px solid var(--line);border-radius:14px;padding:9px 10px 8px;background:var(--surface);box-shadow:var(--shadow-1)}
+.composer .ctxs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.ctxchip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:500;background:var(--assistant-soft);color:var(--assistant)}
+.ctxchip.sel{background:#fff7d1;color:#7a6200}
+:root[data-theme="dark"] .ctxchip.sel{background:#3a3214;color:#ffe14d}
+.composer .ph-t{color:var(--faint);font-size:13.5px;min-height:40px}
+.composer .bar{display:flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-2)}
+.send{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--accent);color:#fff}
+
+/* ---------- voice workspace ---------- */
+.vbody{display:grid;min-height:0;grid-template-columns:minmax(0,1fr) 1px 430px}
+.script{overflow:auto;min-height:0;padding:0 28px 30px}
+.scripthead{position:sticky;top:0;z-index:3;background:var(--bg);padding:14px 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sc{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;box-shadow:var(--shadow-1)}
+.sc.on{border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line),var(--shadow-1)}
+.sc-h{display:flex;align-items:center;gap:10px;padding:10px 12px 0 14px}
+.sc-h .th{width:58px;aspect-ratio:16/9;border-radius:6px;background:var(--stage) center/cover;flex:none}
+.sc-h h4{margin:0;font-size:14px;font-weight:600}
+.sc-h small{font:11.5px var(--mono);color:var(--faint)}
+.vstate{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:7px;font-size:12px;font-weight:600}
+.vstate.ai{background:var(--voice-ai-soft);color:var(--voice-ai)}
+.vstate.me{background:var(--rec-soft);color:var(--rec)}
+.vstate.stale{background:var(--cue-soft);color:var(--warn)}
+.vstate.none{background:var(--soft);color:var(--muted)}
+.text{padding:8px 16px 14px;font-size:17px;line-height:1.75;color:var(--ink);outline:none}
+.text .cuechip{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px 0 6px;margin:0 2px;border-radius:6px;background:var(--cue-soft);color:var(--warn);font:600 11.5px var(--sans);vertical-align:2px;cursor:grab}
+.text .cuechip::before{content:"";width:7px;height:7px;background:var(--cue);transform:rotate(45deg);border-radius:1px}
+.text .spoken{color:var(--faint)}
+.text .now{background:var(--accent-soft);color:var(--accent-ink);border-radius:4px;box-shadow:0 0 0 2px var(--accent-soft)}
+.sc-f{display:flex;align-items:center;gap:6px;padding:0 12px 10px 14px;font-size:12px;color:var(--muted)}
+.banner{display:flex;align-items:center;gap:8px;margin:0 14px 10px;padding:7px 10px;border-radius:9px;background:var(--cue-soft);color:var(--warn);font-size:12.5px;font-weight:500}
+.rside{display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:12px;padding:14px;min-height:0;overflow:auto;background:var(--surface)}
+.rside .canvas{width:100%}
+.field{display:grid;gap:4px;font-size:12px;color:var(--muted)}
+.select{display:flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:500}
+.voices{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.voice{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;font-size:12.5px}
+.voice.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);background:var(--accent-soft)}
+.voice .av{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:11px;color:#fff}
+.voice b{display:block;font-weight:600;font-size:12.5px;line-height:1.2}
+.voice small{color:var(--muted);font-size:11px}
+
+/* ---------- record ---------- */
+.recbar{display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--rec-soft);border-bottom:1px solid color-mix(in srgb,var(--rec) 30%,transparent);font-size:13px}
+.recdot{width:10px;height:10px;border-radius:50%;background:var(--rec);box-shadow:0 0 0 0 var(--rec);animation:rp 1.4s infinite}
+@keyframes rp{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--rec) 60%,transparent)}70%{box-shadow:0 0 0 9px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.meter{display:flex;gap:2px;align-items:flex-end;height:16px}
+.meter i{width:3px;border-radius:1px;background:var(--good)}
+.booth{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,1fr);gap:16px;padding:14px 18px;min-height:0}
+.prompter{background:var(--surface);border:1px solid var(--line);border-radius:14px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;min-height:0;overflow:hidden}
+.prompter .ptop{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line-2);font-size:12.5px}
+.ptext{padding:18px 22px;overflow:hidden;font-size:25px;line-height:1.6;font-weight:500;color:var(--faint);mask-image:linear-gradient(transparent,#000 14%,#000 72%,transparent)}
+.ptext .done{color:color-mix(in srgb,var(--faint) 70%,transparent)}
+.ptext .cur{color:var(--ink)}
+.ptext .w{background:var(--accent-soft);color:var(--accent-ink);border-radius:5px;padding:0 2px}
+.ptext .bigcue{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;margin:0 4px;border-radius:8px;background:var(--cue);color:#1d1300;font-size:14px;font-weight:700;vertical-align:4px;box-shadow:0 0 0 4px color-mix(in srgb,var(--cue) 25%,transparent)}
+.pfoot{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--muted)}
+.holdhint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:6px 12px;font-size:12.5px}
+
+/* ---------- take editor ---------- */
+.editor{display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--surface);border-top:1px solid var(--line);min-height:0}
+.ed-top{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+.take{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--ink-2);border:1px solid var(--line)}
+.take.on{border-color:var(--rec);color:var(--rec);background:var(--rec-soft)}
+.bigwave{position:relative;margin:26px 16px 6px;height:190px}
+.bigwave canvas{position:absolute;left:0;right:0;top:36px;height:110px;width:100%}
+.words{position:absolute;left:0;right:0;top:152px;height:24px}
+.words span{position:absolute;top:0;font-size:12.5px;white-space:nowrap;color:var(--ink-2);transform:translateX(0)}
+.words span.miss{color:var(--warn);text-decoration:underline wavy color-mix(in srgb,var(--warn) 60%,transparent);text-underline-offset:3px}
+.words span.um{color:var(--faint);text-decoration:line-through}
+.sel-range{position:absolute;top:30px;height:150px;background:color-mix(in srgb,var(--accent) 12%,transparent);border-left:2px solid var(--accent);border-right:2px solid var(--accent)}
+.floatbar{position:absolute;top:-22px;transform:translateX(-50%);display:flex;gap:4px;padding:4px;background:var(--ink);border-radius:10px;box-shadow:var(--shadow-2);z-index:3}
+.floatbar button{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 9px;border-radius:7px;color:var(--on-ink);font-size:12.5px;font-weight:600}
+.floatbar button:hover{background:color-mix(in srgb,var(--on-ink) 14%,transparent)}
+.cuehandle{position:absolute;top:14px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;z-index:2;cursor:ew-resize}
+.cuehandle b{font-size:10.5px;font-weight:600;color:var(--warn);background:var(--cue-soft);padding:0 6px;border-radius:5px;white-space:nowrap}
+.cuehandle i{width:0;height:136px;border-left:1.5px dashed var(--cue)}
+.transcript{font-size:14px;line-height:1.8;color:var(--ink-2)}
+.transcript .x{color:var(--faint);text-decoration:line-through}
+.transcript .add{color:var(--warn);background:var(--cue-soft);border-radius:4px;padding:0 3px}
+.transcript .hl{background:color-mix(in srgb,var(--accent) 16%,transparent);border-radius:4px}
+
+/* ---------- home ---------- */
+.home{grid-template-columns:240px minmax(0,1fr)}
+.nav{background:var(--surface);border-right:1px solid var(--line);display:grid;grid-template-rows:52px auto minmax(0,1fr) auto}
+.nav .navi{display:flex;align-items:center;gap:10px;height:38px;padding:0 10px;border-radius:10px;font-size:14px;font-weight:500}
+.nav .navi.on{background:var(--accent-soft);color:var(--accent-ink)}
+.hmain{overflow:auto;padding:46px 56px}
+.hwrap{max-width:860px;margin:0 auto}
+.compose{border:1px solid var(--line);border-radius:18px;background:var(--surface);box-shadow:var(--shadow-1);overflow:hidden}
+.kinds{display:flex;gap:4px;padding:8px 8px 0}
+.kind{flex:1;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;text-align:left}
+.kind .ico{width:32px;height:32px;border-radius:9px;display:grid;place-items:center}
+.kind b{display:block;font-size:13.5px}.kind small{color:var(--muted);font-size:12px}
+.kind.on{background:var(--accent-soft)}
+.kind.on b{color:var(--accent-ink)}
+.cbody{padding:14px 18px 6px;font-size:16px;color:var(--faint);min-height:96px}
+.cfoot{display:flex;align-items:center;gap:6px;padding:8px 10px 10px 12px;flex-wrap:wrap}
+.opt{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:8px;font-size:12.5px;font-weight:500;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line-2)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.pcard{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.pcard .pt{aspect-ratio:16/9;background:var(--stage) center/cover;position:relative}
+.pcard .pt em{position:absolute;right:8px;bottom:8px;font:500 11px var(--mono);font-style:normal;color:#fff;background:rgba(0,0,0,.6);padding:1px 6px;border-radius:5px}
+.pcard .pb{padding:10px 12px}
+.pcard b{font-size:13.5px}
+.sugg{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-size:12.5px;color:var(--ink-2)}
+@media (max-width:900px){.notes{display:none}}
+</style>
+</head>
+<body>
+<div class="mbar">
+  <b>Board · Studio v2 mockup</b>
+  <button data-go="edit" data-on="true">1 · Studio</button>
+  <button data-go="script">2 · Script &amp; AI voice</button>
+  <button data-go="record">3 · Record through the animation</button>
+  <button data-go="take">4 · Fix a take</button>
+  <button data-go="home">5 · Home</button>
+  <span class="sp"></span>
+  <button id="themeBtn">Dark</button>
+  <button id="notesBtn" data-on="true">Notes</button>
+</div>
+
+<div class="stagewrap">
+
+<!-- =============================================================== 1. STUDIO -->
+<div class="win studio on" id="edit">
+  <header class="hdr" data-hdr="edit"></header>
+  <div class="body">
+    <div class="main">
+      <div class="stagearea">
+        <div class="stagebar">
+          <button class="scenepick"><span class="n">2</span><span class="trunc">Slope of sin x</span><span class="faint" style="font-weight:500">of 4</span><svg width="12" height="12" viewBox="0 0 12 12"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+          <div class="seg"><button data-on="true">Whole animation</button><button>Loop this scene</button></div>
+          <button class="btn sm" style="border-color:var(--accent);color:var(--accent-ink);background:var(--accent-soft)"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 2l9 5-4 1.2L6.5 13z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Select</button>
+          <span class="sp"></span>
+          <span class="status"><span class="dot" style="background:var(--good)"></span>Up to date · built 12 s ago</span>
+          <button class="tag" style="background:var(--warn-soft);color:var(--warn)">1 layout note</button>
+          <button class="ib" title="Rebuild"><svg width="15" height="15" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.5V5h-2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+        </div>
+        <div class="screen">
+          <div class="canvas" data-art="sine">
+            <div class="selbox" style="left:42%;top:40%;width:20%;height:31%"><i>tangent line · line 31</i></div>
+            <div class="caption">At <span class="w-now">pi</span> the curve is falling as steeply as it ever does.</div>
+            <div class="hovtools"><button class="glass ib" title="Captions">CC</button><button class="glass ib" title="Full screen (F)"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button></div>
+          </div>
+        </div>
+      </div>
+      <div class="dock" data-dock="edit"></div>
+    </div>
+    <div class="vsplit"></div>
+    <aside class="side">
+      <div class="top"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.5l1.6 4.2 4.4.3-3.4 2.8 1.1 4.3L8 10.8 4.3 13.1l1.1-4.3L2 6l4.4-.3z" fill="var(--assistant)"/></svg>Assistant<span class="sp"></span><span class="tag" style="background:var(--soft);color:var(--muted)">Opus 5.5 · Auto</span></div>
+      <div class="msgs">
+        <div class="you"><div class="ctx"><span class="ctxchip">Scene 2</span></div>Make the tangent line slower and label each slope as it appears.</div>
+        <div class="steps">
+          <div><span class="check">✓</span>Edited scene 2 (slope of sin x)</div>
+          <div><span class="check">✓</span>Built the preview · no errors</div>
+          <div><span class="check">✓</span>Reviewed every step · 1 note</div>
+        </div>
+        <div>The tangent now glides across over 6 seconds instead of 3, and each slope label fades in as the line reaches it: <b>slope = 1</b>, <b>0</b>, <b>−1</b>.<br><span class="muted">One note: “slope = −1” sits close to the curve near π. Want it moved up?</span></div>
+        <div class="row" style="gap:6px;flex-wrap:wrap"><button class="btn sm">Yes, move it up</button><button class="btn sm ghost">Leave it</button></div>
+      </div>
+      <div class="composer">
+        <div class="ctxs"><span class="ctxchip">Scene 2 · 1:20</span><span class="ctxchip sel">tangent line ✕</span></div>
+        <div class="ph-t">Describe a change…</div>
+        <div class="bar"><span>✺ Opus 5.5 ▾</span><span class="faint">·</span><span>Medium ▾</span><span class="faint">·</span><span>Auto ▾</span><span class="sp"></span><button class="send"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 13V3M4 7l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<!-- =============================================================== 2. SCRIPT & AI VOICE -->
+<div class="win studio" id="script">
+  <header class="hdr" data-hdr="voice"></header>
+  <div class="main">
+    <div class="vbody">
+      <div class="script">
+        <div class="scripthead">
+          <div class="seg"><button data-on="true">✦ Script &amp; AI voice</button><button>● Record my voice</button></div>
+          <span class="sp"></span>
+          <button class="btn sm">✦ Write the script with AI</button>
+          <button class="btn sm accent">Voice all 4 scenes</button>
+        </div>
+
+        <div class="sc">
+          <div class="sc-h"><div class="th" data-thumb="circle"></div><div class="trunc"><h4>1 · Height on the unit circle</h4><small>0:00 – 0:41</small></div><span class="sp"></span><span class="vstate ai">✦ Heart · 17.3 s</span><button class="ib">▶</button><button class="ib">⋯</button></div>
+          <div class="text"><span class="spoken">Take a point moving round the <span class="cuechip">circle</span> unit circle. As it turns through an angle x, its <span class="cuechip">height</span> height is sin x.</span></div>
+        </div>
+
+        <div class="sc on">
+          <div class="sc-h"><div class="th" data-thumb="sine"></div><div class="trunc"><h4>2 · Slope of sin x</h4><small>0:41 – 1:38 · playing</small></div><span class="sp"></span><span class="vstate ai">✦ Heart · 21.0 s</span><button class="ib" data-on="true">❚❚</button><button class="ib">⋯</button></div>
+          <div class="text" contenteditable="true" spellcheck="false"><span class="spoken">The derivative is the slope. So how steep is sin x at each point? <span class="cuechip">tangent</span> Lay a ruler along the curve. At zero it climbs with a slope of one. <span class="cuechip">peak</span> At the peak it's flat, slope zero.</span> <span class="cuechip">falling</span> At <span class="now">pi</span> the curve is falling as steeply as it ever does, with a slope of minus one.</div>
+          <div class="sc-f"><span>Type <span class="kbd">{</span> or press <span class="kbd">Ctrl M</span> to add a cue where an animation should start · drag a cue to move it</span><span class="sp"></span><button class="btn sm ghost">✦ Rewrite ▾</button></div>
+        </div>
+
+        <div class="sc">
+          <div class="sc-h"><div class="th" data-thumb="cos"></div><div class="trunc"><h4>3 · Plot the slopes</h4><small>1:38 – 2:24</small></div><span class="sp"></span><span class="vstate stale">Script changed</span><button class="ib">▶</button><button class="ib">⋯</button></div>
+          <div class="text">Now let's <span class="cuechip">drop</span> drop each slope onto a new graph. One, zero, minus one, zero, one. <span class="cuechip">trace</span> We know this shape. It is the graph of cos x.</div>
+          <div class="banner"><span>The voice still says the old script.</span><span class="sp"></span><button class="btn sm" style="height:26px">Regenerate voice</button></div>
+        </div>
+
+        <div class="sc">
+          <div class="sc-h"><div class="th" data-thumb="eq"></div><div class="trunc"><h4>4 · d/dx sin x = cos x</h4><small>2:24 – 2:52</small></div><span class="sp"></span><span class="vstate me">● Your voice · 22.4 s</span><button class="ib">▶</button><button class="ib">⋯</button></div>
+          <div class="text">So the derivative of sin x is cos x. <span class="cuechip">result</span> One line, and it only works because x is in radians.</div>
+          <div class="sc-f"><span>Recorded take 3 of 3 · lined up with 2 cues</span><span class="sp"></span><button class="btn sm ghost">Edit take</button><button class="btn sm ghost">Use AI voice instead</button></div>
+        </div>
+      </div>
+      <div class="vsplit"></div>
+      <div class="rside">
+        <div class="canvas" data-art="sine"><div class="caption" style="font-size:13px">At <span class="w-now">pi</span> the curve is falling as steeply…</div></div>
+        <div class="card" style="padding:12px 12px 14px;display:grid;gap:10px">
+          <div class="row"><b style="font-size:13px">AI voice</b><span class="sp"></span><span class="faint" style="font-size:11.5px">Runs on this computer · free</span></div>
+          <div class="voices" data-voices></div>
+          <div class="row" style="gap:10px;font-size:12.5px"><span class="muted">Pace</span><input type="range" min="0.8" max="1.2" step="0.05" value="1" style="flex:1;accent-color:var(--accent)"><span class="mono">1.00×</span></div>
+          <div class="row" style="font-size:12px" ><span class="muted">Pause between sentences</span><span class="sp"></span><div class="seg" style="padding:2px"><button style="height:24px;font-size:12px">Short</button><button data-on="true" style="height:24px;font-size:12px">Natural</button><button style="height:24px;font-size:12px">Long</button></div></div>
+        </div>
+        <div class="card" style="padding:12px;font-size:12.5px;color:var(--muted);line-height:1.55">
+          <b style="color:var(--ink);font-size:13px">How cues work</b><br>
+          Each <span class="cuechip" style="display:inline-flex;height:20px;padding:0 6px;border-radius:5px;background:var(--cue-soft);color:var(--warn);font-weight:600;font-size:11px">◆ cue</span> is tied to an animation. The animation waits until the voice reaches that word, so changing the words never breaks the timing.
+        </div>
+      </div>
+    </div>
+    <div class="dock" data-dock="script"></div>
+  </div>
+</div>
+
+<!-- =============================================================== 3. RECORD -->
+<div class="win studio" id="record" style="grid-template-rows:52px auto minmax(0,1fr)">
+  <header class="hdr" data-hdr="voice"></header>
+  <div class="recbar">
+    <span class="recdot"></span><b style="color:var(--rec)">Recording</b><span class="mono">0:12.4</span>
+    <span class="muted">·</span><span>Scene 2 of 4 · Slope of sin x</span>
+    <span class="muted">·</span><span class="row" style="gap:6px"><span class="muted">Headset mic</span><span class="meter" data-meter></span></span>
+    <span class="sp"></span>
+    <span class="muted" style="font-size:12px">Mistake? Just pause and say the sentence again. You can fix it after.</span>
+    <button class="btn sm">❚❚ Pause</button>
+    <button class="btn sm dark">■ Stop</button>
+  </div>
+  <div class="main">
+    <div class="booth">
+      <div class="screen" style="align-items:stretch">
+        <div style="display:grid;grid-template-rows:minmax(0,1fr) auto;gap:10px;width:100%">
+          <div class="screen"><div class="canvas" data-art="sine">
+            <div class="glass holdhint"><span style="display:inline-block;width:9px;height:9px;background:var(--cue);transform:rotate(45deg);border-radius:2px"></span>Waiting for <b>“falling”</b> · press <span class="kbd" style="background:#333;color:#fff;border-color:#555">Space</span> when you say it</div>
+          </div></div>
+          <div class="row" style="font-size:12.5px;color:var(--muted);gap:14px;flex-wrap:wrap">
+            <span>✓ The animation plays with you and holds at each cue</span>
+            <span>✓ 3-second count-in</span>
+            <span>✓ Earlier scenes keep their voice</span>
+          </div>
+        </div>
+      </div>
+      <div class="prompter">
+        <div class="ptop"><b>Script</b><span class="muted">· scene 2</span><span class="sp"></span><span class="pill">A−</span><span class="pill">A+</span><span class="pill" data-on="true">Auto-scroll</span></div>
+        <div class="ptext">
+          <span class="done">The derivative is the slope. So how steep is sin x at each point? Lay a ruler along the curve. At zero it climbs with a slope of one.</span>
+          <span class="cur">At the peak it's <span class="w">flat,</span> slope zero.</span>
+          <span class="bigcue">◆ falling</span>
+          <span>At pi the curve is falling as steeply as it ever does, with a slope of minus one.</span>
+          <span>Then it levels out again at the bottom.</span>
+        </div>
+        <div class="pfoot"><span>Next scene starts after a 1 s pause</span><span class="sp"></span><button class="btn sm ghost">Skip to scene 3 →</button></div>
+      </div>
+    </div>
+    <div class="dock" data-dock="record"></div>
+  </div>
+</div>
+
+<!-- =============================================================== 4. FIX A TAKE -->
+<div class="win studio" id="take">
+  <header class="hdr" data-hdr="voice"></header>
+  <div class="main" style="grid-template-rows:minmax(0,1fr) auto">
+    <div class="vbody" style="grid-template-columns:minmax(0,1fr) 1px 400px">
+      <div class="stagearea">
+        <div class="stagebar">
+          <div class="seg"><button>✦ Script &amp; AI voice</button><button data-on="true">● Record my voice</button></div>
+          <span class="sp"></span>
+          <button class="btn sm">↺ Undo</button>
+          <button class="btn sm rec">● Record scene 2 again</button>
+        </div>
+        <div class="screen"><div class="canvas" data-art="sine" style="max-width:760px"><div class="caption">At pi the curve is falling as <span class="w-now">steeply</span> as it ever does.</div></div></div>
+      </div>
+      <div class="vsplit"></div>
+      <div class="rside" style="grid-template-rows:auto minmax(0,1fr)">
+        <div class="row"><b style="font-size:13.5px">What you said</b><span class="sp"></span><span class="tag" style="background:var(--good-soft);color:var(--good)">3 of 3 cues found</span></div>
+        <div class="transcript">
+          The derivative is the slope. So how steep is sin x at each point? <span class="x">um</span> Lay a ruler along the curve. At zero it climbs with a slope of one. At the peak it's flat, slope zero.
+          <span class="hl">At pi the curve is falling as steeply as it ever does,</span> with a <span class="add">gradient</span> of minus one.
+          <div class="card" style="margin-top:12px;padding:10px 12px;font-size:12.5px;line-height:1.5;color:var(--muted)">
+            <b style="color:var(--ink)">You said “gradient”, the script says “slope”.</b><br>
+            <div class="row" style="margin-top:6px;gap:6px"><button class="btn sm">Update the script</button><button class="btn sm ghost">Keep both</button></div>
+          </div>
+          <div class="card" style="margin-top:10px;padding:10px 12px;font-size:12.5px;line-height:1.5;color:var(--muted)">
+            <b style="color:var(--ink)">Tidy up</b>
+            <div class="row" style="margin-top:6px;gap:6px;flex-wrap:wrap"><button class="btn sm">Remove 2 ums</button><button class="btn sm">Shorten long pauses</button><button class="btn sm ghost">Even out volume</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="editor">
+      <div class="ed-top">
+        <b style="font-size:13px">Scene 2 · your voice</b>
+        <span class="take on">● Take 3 · 23.1 s</span><span class="take">Take 2 · 25.8 s</span><span class="take">Take 1 · 9.4 s (stopped)</span>
+        <span class="sp"></span>
+        <span class="muted" style="font-size:12px">Drag across the words to select · drag a ◆ to retime an animation</span>
+        <div class="zoom"><span>−</span><input type="range" value="40"><span>+</span></div>
+      </div>
+      <div class="bigwave" id="bigwave">
+        <canvas id="bigcanvas"></canvas>
+        <div class="words" id="words"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== 5. HOME -->
+<div class="win home" id="home">
+  <nav class="nav">
+    <div class="row" style="padding:0 18px;gap:10px" data-lockup></div>
+    <div style="padding:14px 12px;display:grid;gap:2px">
+      <div class="navi on">⌂ Home</div><div class="navi">▦ Projects</div><div class="navi">⚙ Settings</div>
+    </div>
+    <div></div>
+    <div style="padding:12px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)">By the Apollo team · <span style="color:var(--accent-ink)">apollolearn.app</span></div>
+  </nav>
+  <main class="hmain"><div class="hwrap">
+    <h1 style="margin:0;font-size:34px;letter-spacing:-.02em;font-weight:600">What would you like to explain?</h1>
+    <p class="muted" style="margin:6px 0 22px">Describe an idea or paste a script. Your assistant builds it on this computer.</p>
+    <div class="compose">
+      <div class="kinds">
+        <button class="kind on"><span class="ico" style="background:var(--surface);color:var(--accent)">▶</span><span><b>Video</b><small>Manim · MP4 or GIF</small></span></button>
+        <button class="kind"><span class="ico" style="background:var(--context-soft);color:var(--context)">∿</span><span><b>Web animation</b><small>One HTML file</small></span></button>
+        <button class="kind"><span class="ico" style="background:var(--warn-soft);color:var(--warn)">⚗</span><span><b>Lab</b><small>Interactive page</small></span></button>
+      </div>
+      <div class="cbody">Describe the idea, the class and what students should understand…</div>
+      <div class="cfoot">
+        <span class="opt">💡 An idea ▾</span><span class="opt">▭ 16:9 ▾</span><span class="opt">◷ Explainer · 1–5 min ▾</span><span class="opt" style="color:var(--accent-ink);background:var(--accent-soft);border-color:var(--accent-line)">✓ Ask me questions first</span>
+        <span class="sp"></span><span class="faint" style="font-size:12.5px">✺ Opus 5.5 · Auto</span>
+        <button class="btn accent">Start →</button>
+      </div>
+    </div>
+    <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:14px">
+      <span class="sugg">Why does the unit circle give us sine and cosine?</span><span class="sugg">Visualise compound interest over 30 years</span><span class="sugg">How a and b change y = a·sin(bx)</span>
+    </div>
+    <div class="row" style="margin:34px 0 12px"><b style="font-size:15px">Recent</b><span class="sp"></span><span style="color:var(--accent-ink);font-size:13px;font-weight:500">All projects (3)</span></div>
+    <div class="grid3">
+      <div class="pcard"><div class="pt" data-thumb="sine"><em>2:52</em></div><div class="pb"><b>Why the derivative of sine is cosine</b><div class="row muted" style="font-size:12px;margin-top:3px">Web animation · 4 scenes<span class="sp"></span><span style="color:var(--voice-ai)">✦ voiced</span></div></div></div>
+      <div class="pcard"><div class="pt" data-thumb="tri"><em>0:59</em></div><div class="pb"><b>Pythagoras in 30 seconds</b><div class="row muted" style="font-size:12px;margin-top:3px">Video · 9:16 · 3 scenes<span class="sp"></span><span style="color:var(--rec)">● your voice</span></div></div></div>
+      <div class="pcard"><div class="pt" data-thumb="lab"></div><div class="pb"><b>Projectile motion lab</b><div class="row muted" style="font-size:12px;margin-top:3px">Lab<span class="sp"></span>just now</div></div></div>
+    </div>
+  </div></main>
+</div>
+
+</div>
+
+<div class="notes" id="notes"></div>
+
+<script>
+/* ------------------------------------------------------------------ data */
+const DUR = 172; // 2:52
+const SCENES = [
+  {n:1,title:"Height on the unit circle",s:0,e:41,art:"circle"},
+  {n:2,title:"Slope of sin x",s:41,e:98,art:"sine"},
+  {n:3,title:"Plot the slopes",s:98,e:144,art:"cos"},
+  {n:4,title:"d/dx sin x = cos x",s:144,e:172,art:"eq"},
+];
+const CLIPS = [
+  [1,4,"Create(circle)"],[5,9,"Write(title)"],[10,17,"MoveAlong(dot)"],[19,22,"wait"],[22,33,"Trace(height)"],[34,40,"FadeIn(label)"],
+  [42,46,"Create(axes)"],[47,50,"wait"],[50,58,"Create(tangent)"],[58,62,"Write(slope=1)"],[63,66,"wait"],[66,74,"Slide(tangent)"],[74,77,"Write(0)"],[78,80,"wait"],[80,90,"Slide(tangent)"],[90,96,"Write(−1)"],
+  [99,104,"Create(axes 2)"],[104,107,"wait"],[107,118,"Drop(slopes)"],[120,131,"Trace(cos)"],[132,135,"wait"],[135,142,"Write(cos x)"],
+  [145,150,"Write(d/dx)"],[151,153,"wait"],[153,160,"Transform(eq)"],[162,170,"Indicate(eq)"],
+];
+const CUES = [[19,"height"],[47,"tangent"],[63,"peak"],[78,"falling"],[104,"drop"],[132,"trace"],[151,"result"]];
+const VOICE = [ // [start,end,source,label,stale]
+  [1,38,"ai","AI · Heart"],[42,96,"ai","AI · Heart"],[99,142,"ai","AI · out of date",true],[145,170,"me","Your voice · take 3"]];
+const NOW = 80.4;
+
+const pct = (t)=> (t/DUR*100)+"%";
+const fmt = (t)=> `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,"0")}`;
+
+/* ------------------------------------------------------------------ art */
+function art(kind, w=640, h=360){
+  const bg = `<rect width="${w}" height="${h}" fill="#0e0e12"/>`;
+  const axis = (y)=>`<line x1="60" y1="${y}" x2="${w-40}" y2="${y}" stroke="#ddd" stroke-width="1.5"/><line x1="80" y1="${y-120}" x2="80" y2="${y+110}" stroke="#ddd" stroke-width="1.5"/>`;
+  const sine = (y,amp,col,len=1)=>{let d="";for(let i=0;i<=200*len;i++){const x=80+i*(w-130)/200;const v=Math.sin(i/200*2*Math.PI);d+=(i?"L":"M")+x.toFixed(1)+" "+(y-v*amp).toFixed(1)}return `<path d="${d}" fill="none" stroke="${col}" stroke-width="3"/>`};
+  const cos = (y,amp,col,len=1)=>{let d="";for(let i=0;i<=200*len;i++){const x=80+i*(w-130)/200;const v=Math.cos(i/200*2*Math.PI);d+=(i?"L":"M")+x.toFixed(1)+" "+(y-v*amp).toFixed(1)}return `<path d="${d}" fill="none" stroke="${col}" stroke-width="3"/>`};
+  const T=(x,y,s,t,c="#fff")=>`<text x="${x}" y="${y}" fill="${c}" font-family="Georgia,serif" font-size="${s}" text-anchor="middle">${t}</text>`;
+  if(kind==="sine"){const px=80+(w-130)/2;return `${bg}${T(w/2,50,24,"How steep is sin x at each point?")}${axis(200)}${sine(200,90,"#58c4dd")}
+    <line x1="${px-60}" y1="${200-60*0.85}" x2="${px+60}" y2="${200+60*0.85}" stroke="#ffe14d" stroke-width="4"/><circle cx="${px}" cy="200" r="6" fill="#ffe14d"/>
+    ${T(px+90,150,17,"slope = −1","#ffe14d")}${T(80+(w-130)/4,90,17,"slope = 0","#ffe14d")}${T(130,262,17,"slope = 1","#ffe14d")}
+    ${T(80+(w-130)/4,226,14,"π/2")}${T(px,226,14,"π")}${T(80+3*(w-130)/4,226,14,"3π/2")}`}
+  if(kind==="circle"){return `${bg}${T(w/2,50,24,"Height on the unit circle")}<circle cx="${w/2-80}" cy="200" r="100" fill="none" stroke="#58c4dd" stroke-width="3"/><line x1="${w/2-80}" y1="200" x2="${w/2-80+71}" y2="129" stroke="#fff" stroke-width="2"/><line x1="${w/2-9}" y1="129" x2="${w/2-9}" y2="200" stroke="#ffe14d" stroke-width="4"/><circle cx="${w/2-9}" cy="129" r="7" fill="#f26b5b"/>${T(w/2+110,170,22,"sin x","#ffe14d")}`}
+  if(kind==="cos"){return `${bg}${T(w/2,50,24,"Plot the slopes")}${axis(210)}${cos(210,85,"#5db37a")}${[0,.25,.5,.75,1].map(f=>`<circle cx="${80+f*(w-130)}" cy="${210-Math.cos(f*2*Math.PI)*85}" r="6" fill="#ffe14d"/>`).join("")}`}
+  if(kind==="eq"){return `${bg}${T(w/2,190,52,"d/dx sin x = cos x")}<rect x="${w/2-230}" y="130" width="460" height="90" rx="8" fill="none" stroke="#ffe14d" stroke-width="3"/>${T(w/2,270,18,"(x in radians)","#aaa")}`}
+  if(kind==="tri"){return `${bg}<polygon points="${w/2-90},230 ${w/2+120},230 ${w/2-90},110" fill="#3a8fb7" stroke="#fff" stroke-width="3"/>${T(w/2-115,180,26,"a","#5db37a")}${T(w/2+15,262,26,"b","#f26b5b")}${T(w/2+30,160,26,"c","#ffe14d")}`}
+  if(kind==="lab"){return `<rect width="${w}" height="${h}" fill="#f4f6fb"/><rect x="0" y="${h-60}" width="${w}" height="60" fill="#cfe7c8"/><path d="M60 ${h-60} Q ${w/2} -40 ${w-120} ${h-60}" fill="none" stroke="#4338ca" stroke-width="4" stroke-dasharray="8 7"/><circle cx="${w-120}" cy="${h-66}" r="14" fill="#f26b5b"/><rect x="40" y="30" width="190" height="64" rx="10" fill="#fff" stroke="#d3d3d9"/>${T(135,70,20,"θ = 42°","#27272a")}`}
+  return bg;
+}
+const svgUrl = (k,w,h)=> `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${w||640} ${h||360}'>${art(k,w,h)}</svg>`)}")`;
+document.querySelectorAll("[data-art]").forEach(el=>{el.insertAdjacentHTML("afterbegin",`<svg class="art" viewBox="0 0 640 360" preserveAspectRatio="xMidYMid meet">${art(el.dataset.art)}</svg>`)});
+document.querySelectorAll("[data-thumb]").forEach(el=>{el.style.backgroundImage=svgUrl(el.dataset.thumb)});
+
+/* ------------------------------------------------------------------ header */
+const MARK = `<svg width="26" height="22" viewBox="0 0 120 100" fill="none" stroke-linecap="round"><path d="M10 60 Q 40 25 100 20" stroke="var(--accent)" stroke-width="6"/><path d="M47 66 L41 90 M73 66 L79 90" stroke="var(--ink)" stroke-width="6.5"/><rect x="30" y="20" width="60" height="46" rx="12" stroke="var(--ink)" stroke-width="7"/><path d="M111 26 Q 100 55 12 64" stroke="var(--accent)" stroke-width="6"/><circle cx="107" cy="39" r="7.5" fill="var(--assistant)"/></svg>`;
+document.querySelectorAll("[data-lockup]").forEach(el=>el.innerHTML=`${MARK}<span style="display:flex;flex-direction:column;line-height:1"><b style="font-size:17px;letter-spacing:-.02em">Board</b><small class="muted" style="font-size:10.5px;margin-top:3px">by Apollo</small></span>`);
+document.querySelectorAll("[data-hdr]").forEach(el=>{
+  const voice = el.dataset.hdr==="voice";
+  el.innerHTML = `
+    <button class="ib" title="Home"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+    ${MARK}<span class="title trunc">Why the derivative of sine is cosine</span><span class="tag" style="background:var(--soft);color:var(--muted)">Web animation · 16:9</span>
+    <div class="ws seg"><button data-on="${!voice}">◧ Edit</button><button data-on="${voice}">◉ Voice-over</button></div>
+    <span class="sp"></span>
+    <button class="ib" title="Versions"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2.5 8a5.5 5.5 0 1 0 1.7-4M2.5 2.5V5H5M8 5v3.2l2 1.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    <button class="ib" data-on="${!voice}" title="Assistant (Ctrl J)"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 2.5v11" stroke="currentColor" stroke-width="1.5"/></svg></button>
+    <button class="btn accent sm" style="margin-left:4px"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>Export</button>`;
+});
+
+/* ------------------------------------------------------------------ waveform */
+function rnd(seed){let s=seed;return ()=>((s=Math.imul(s^s>>>15,1|s)+0x6d2b79f5|0)>>>0)/4294967296}
+function drawWave(cv, color, opts={}){
+  const dpr = devicePixelRatio||1, r = cv.getBoundingClientRect();
+  if(!r.width) return;
+  cv.width = r.width*dpr; cv.height = r.height*dpr;
+  const g = cv.getContext("2d"); g.scale(dpr,dpr);
+  const R = rnd(opts.seed||7), n = Math.floor(r.width/ (opts.bar||3));
+  for(let i=0;i<n;i++){
+    const t=i/n; const env = (Math.sin(t*37)+1.4)*(Math.sin(t*9+1)+1.3)/6;
+    const gap = opts.gaps && opts.gaps.some(([a,b])=>t>=a&&t<=b);
+    let v = gap? 0.03 : Math.min(1, env*(0.35+R()*0.75));
+    if(opts.until && t>opts.until) break;
+    g.fillStyle = (opts.sel && t>=opts.sel[0] && t<=opts.sel[1]) ? opts.selColor : color;
+    const h = Math.max(1.5, v*r.height*0.9);
+    g.fillRect(i*(opts.bar||3), (r.height-h)/2, (opts.bar||3)-1, h);
+  }
+}
+
+/* ------------------------------------------------------------------ timeline dock */
+function dock(mode){
+  const rec = mode==="record";
+  const now = rec ? 74.4 : NOW;
+  const ticks = []; for(let t=0;t<=DUR;t+=5){ticks.push(`<i style="left:${pct(t)};height:${t%20===0?9:4}px"></i>${t%20===0?`<span style="left:${pct(t)}">${fmt(t)}</span>`:""}`)}
+  const scenes = SCENES.map(s=>`<div class="scene-tile ${s.n===2?"on":""}" style="left:${pct(s.s)};width:calc(${(s.e-s.s)/DUR*100}% - 3px);background-image:${svgUrl(s.art)}"><b>${s.n}. ${s.title}</b><em>${fmt(s.e-s.s)}</em></div>`).join("");
+  const clips = CLIPS.map((c,i)=> c[2]==="wait"
+     ? `<span class="wait" style="left:${pct(c[0])};width:${(c[1]-c[0])/DUR*100}%" title="Waits for the voice"></span>`
+     : `<span class="clip ${SCENES.findIndex(s=>c[0]>=s.s&&c[0]<s.e)%2?"alt":""} ${c[2]==="Slide(tangent)"&&c[0]===80&&mode==="edit"?"sel":""}" style="left:${pct(c[0])};width:calc(${(c[1]-c[0])/DUR*100}% - 2px)">${c[2]}</span>`).join("");
+  const cues = CUES.map(([t,n])=>`<span class="cue" style="left:${pct(t)}" title="◆ ${n}"></span><span class="cue-line" style="left:${pct(t)}"></span>`).join("");
+  const voice = VOICE.map(([s,e,src,l,stale],i)=>{
+    const live = rec && i===1;
+    const end = live ? now : e;
+    const cls = live ? "me" : (rec && i===0 ? "me" : src);
+    const lab = live ? "● Recording…" : (rec && i===0 ? "Your voice · take 1" : l);
+    return `<div class="vclip ${cls} ${stale&&!rec?"stale":""}" style="left:${pct(s)};width:${(end-s)/DUR*100}%"><span class="lbl">${lab}</span><canvas data-w="${cls}" data-seed="${i+3}"></canvas></div>`
+      + (live ? `<div class="vclip" style="left:${pct(now)};width:${(e-now)/DUR*100}%;opacity:.35;border:1px dashed var(--line)"></div>` : "");
+  }).join("");
+  const transport = `
+    <button class="ib" title="Previous scene ([)"><svg width="13" height="13" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="1.6" height="9" rx=".6" fill="currentColor"/><path d="M10.5 1.5v9L4 6z" fill="currentColor"/></svg></button>
+    <button class="play" title="Play (Space)">${rec?`<span style="width:10px;height:10px;border-radius:2px;background:var(--on-ink)"></span>`:`<svg width="12" height="12" viewBox="0 0 12 12"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>`}</button>
+    <button class="ib" title="Next scene (])"><svg width="13" height="13" viewBox="0 0 12 12"><rect x="8.9" y="1.5" width="1.6" height="9" rx=".6" fill="currentColor"/><path d="M1.5 1.5v9L8 6z" fill="currentColor"/></svg></button>
+    <span class="tc">${fmt(now)}.${String(Math.round((now%1)*10))} <span>/ ${fmt(DUR)}</span></span>
+    <span style="width:1px;height:20px;background:var(--line);margin:0 4px"></span>
+    <button class="pill">1× ▾</button>
+    <button class="pill" data-on="true" title="Captions (C)">CC</button>
+    <button class="pill" title="Loop scene (L)">⟲ Loop scene</button>
+    <span class="sp"></span>
+    ${mode==="edit" ? `<span class="muted" style="font-size:11.5px">Space play · ←/→ 1 s · , . frame · [ ] scene</span>` : ""}
+    ${mode==="script" ? `<button class="btn sm ghost" style="color:var(--voice-ai)">✦ Voice track: AI</button>` : ""}
+    ${rec ? `<span style="font-size:12px;color:var(--rec);font-weight:600">● Recording into scene 2</span>` : ""}
+    <span style="width:1px;height:20px;background:var(--line);margin:0 4px"></span>
+    <div class="zoom"><span title="Zoom out">−</span><input type="range" value="20" aria-label="Zoom"><span title="Zoom in">+</span><button class="pill">Fit</button></div>`;
+  const popover = mode==="edit" ? `<div class="popover" style="left:calc(${pct(80)} - 40px);bottom:76px">
+      <div class="row"><h5>Slide(tangent)</h5><span class="sp"></span><span class="mono faint" style="font-size:11px">1:20 – 1:30</span></div>
+      <div class="muted">Scene 2 · line 44 · waits for ◆ falling</div>
+      <div class="act"><button class="btn sm">Ask about this step</button><button class="btn sm ghost">Make it slower</button><button class="btn sm ghost">Show code</button></div></div>` : "";
+  const ghost = mode==="edit" ? `<div class="hoverline" style="left:${pct(156)}"><div class="peek" style="background-image:${svgUrl("eq")};background-size:cover;aspect-ratio:16/9"><span style="position:absolute;bottom:0;left:0;right:0">2:36 · d/dx sin x</span></div></div>` : "";
+  return `<div class="transport">${transport}</div>
+    <div class="tracks">
+      <div class="labels"><div></div><div><i class="dot" style="background:var(--ink)"></i>Scenes</div><div><i class="dot" style="background:var(--context)"></i>Animation</div><div><i class="dot" style="background:var(--cue);border-radius:2px;transform:rotate(45deg)"></i>Cues</div><div><i class="dot" style="background:${rec?"var(--rec)":"var(--voice-ai)"}"></i>Voice</div></div>
+      <div class="lanes">
+        <div class="ruler">${ticks.join("")}</div>
+        <div class="lane">${scenes}</div>
+        <div class="lane">${clips}</div>
+        <div class="lane" style="background:none">${cues}</div>
+        <div class="lane">${voice}</div>
+        <div class="ph" style="left:${pct(now)}"></div>${ghost}${popover}
+      </div>
+    </div>`;
+}
+document.querySelectorAll("[data-dock]").forEach(el=>el.innerHTML=dock(el.dataset.dock));
+
+/* voice picker */
+const VO = [["Heart","Warm · US","#6d5ef5"],["Bella","Bright · US","#d94f8a"],["Michael","Calm · US","#1d8a6d"],["Fenrir","Deep · US","#9a4a08"],["Emma","Clear · UK","#1d4ed8"],["George","Steady · UK","#52525b"]];
+document.querySelectorAll("[data-voices]").forEach(el=>el.innerHTML=VO.map((v,i)=>`<button class="voice ${i===0?"on":""}"><span class="av" style="background:${v[2]}">${v[0][0]}</span><span style="text-align:left"><b>${v[0]}</b><small>${v[1]}</small></span><span class="sp"></span><span class="faint">▶</span></button>`).join(""));
+/* mic meter */
+document.querySelectorAll("[data-meter]").forEach(el=>{el.innerHTML=Array.from({length:12},(_, i)=>`<i style="height:${[4,7,11,14,9,16,13,8,12,6,10,5][i]}px;background:${i>9?"var(--warn)":"var(--good)"}"></i>`).join("")});
+
+/* take editor words */
+const WORDS = "um Lay a ruler along the curve. At zero it climbs with a slope of one. At the peak it's flat, slope zero. At pi the curve is falling as steeply as it ever does, with a gradient of minus one.".split(" ");
+function layoutTake(){
+  const host = document.getElementById("words"), wrap = document.getElementById("bigwave");
+  if(!wrap.offsetWidth) return;
+  const W = wrap.offsetWidth - 8; const total = WORDS.reduce((n,w)=>n+w.length+2,0);
+  const k = W/total; const xs=[]; let c=0; for(const w of WORDS){xs.push(4+c*k); c+=w.length+2}
+  host.innerHTML = WORDS.map((w,i)=>{const cls = w==="um"?"um":w==="gradient"?"miss":""; return `<span class="${cls}" style="left:${xs[i]}px">${w}</span>`}).join("");
+  const a = WORDS.indexOf("pi")-1, b = WORDS.indexOf("does,")+1;
+  const sx = xs[a]-3, ex=xs[b]-6;
+  wrap.querySelectorAll(".sel-range,.floatbar,.cuehandle").forEach(e=>e.remove());
+  wrap.insertAdjacentHTML("beforeend", `<div class="sel-range" style="left:${sx}px;width:${ex-sx}px"></div>
+    <div class="floatbar" style="left:${Math.min((sx+ex)/2, W-230)}px"><button>▶ Play</button><button>✂ Cut</button><button style="color:#ff8a8e">● Re-record this bit</button><button>✦ AI voice here</button></div>
+    ${[["tangent",WORDS.indexOf("Lay")],["peak",WORDS.indexOf("peak")-2],["falling",WORDS.indexOf("pi")-1]].map(([nm,i])=>`<div class="cuehandle" style="left:${xs[i]-2}px"><b>◆ ${nm}</b><i></i></div>`).join("")}`);
+  const cv = document.getElementById("bigcanvas");
+  const gaps=[[0.0,0.012],[0.035,0.06],[0.3,0.32],[0.55,0.575]];
+  drawWave(cv, getComputedStyle(document.documentElement).getPropertyValue("--rec").trim()||"#e5484d", {seed:11,bar:3,gaps,sel:[sx/W,ex/W],selColor:getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()});
+}
+
+function paint(){
+  const css = getComputedStyle(document.documentElement);
+  document.querySelectorAll(".win.on canvas[data-w]").forEach(cv=>{
+    const kind = cv.dataset.w; const col = (kind==="me"? css.getPropertyValue("--rec"): css.getPropertyValue("--voice-ai")).trim();
+    cv.style.width="100%";cv.style.height="100%";cv.style.position="absolute";cv.style.inset="0";
+    drawWave(cv, col, {seed:+cv.dataset.seed, bar:2, gaps:[[0.31,0.36],[0.6,0.64]]});
+  });
+  if(document.getElementById("take").classList.contains("on")) layoutTake();
+}
+
+/* ------------------------------------------------------------------ notes */
+const NOTES = {
+  edit:["<b>One timeline, docked full width.</b> The scene list on the left is gone: scenes live on the timeline as a filmstrip, and the scene picker above the stage lists them all for long lessons.",
+        "<b>Real timeline:</b> time ruler, zoom + Fit, draggable playhead, hover shows a frame preview, every animation step labelled. Waits for the voice are hatched; cues (◆) line up animation to voice.",
+        "<b>Click a step</b> to see its scene, source line and cue, ask about it, or jump there.",
+        "<b>Transport no longer covers the picture</b> (captions were cut off). Speed, captions, loop scene, frame-by-frame keys, full screen.",
+        "<b>Calmer header:</b> Edit / Voice-over switch, one accent button (Export); Assistant is a toggle, not a second loud button.",
+        "Status says what it means: “Up to date · built 12 s ago”, “1 layout note” instead of a red warning pill."],
+  script:["<b>Voice-over is its own workspace</b>, not a tab squeezed into the chat panel.",
+        "<b>Two paths, side by side:</b> “Script &amp; AI voice” and “Record my voice”. Each scene can use either.",
+        "<b>The script reads like a document</b>: cues are chips you can drag, type <span class=mono>{</span> to add one. While it plays, the spoken word is highlighted and the preview follows.",
+        "<b>✦ Write the script with AI</b> (whole thing) or <b>✦ Rewrite</b> one scene: shorter, simpler, livelier.",
+        "Out-of-date voices are flagged on the scene and on the voice track; one click regenerates.",
+        "Voice picker with samples, pace and pause length. Voice track on the timeline shows real waveforms."],
+  record:["<b>Recording plays through the animation.</b> Pick a scene, from here, or everything; 3-second count-in.",
+        "<b>The animation holds at each cue</b> until you reach it: tap Space when you say the word (or let speech recognition place it afterwards).",
+        "<b>Teleprompter</b> beside the stage: auto-scrolls, current line highlighted, next cue shown big.",
+        "Live waveform grows on the voice track. Earlier scenes keep their voice; pause/stop any time.",
+        "Mistakes don't need a restart: pause, say the sentence again, fix it in the take editor."],
+  take:["<b>Edit your voice like a document.</b> Every word you said sits under the waveform.",
+        "<b>Drag across words → Cut, Re-record this bit</b> (plays 2 s before, records, replaces just that part), <b>or use the AI voice</b> for that bit.",
+        "<b>Drag a cue (◆)</b> to retime when an animation starts.",
+        "<b>Takes</b> are kept; switch between them. Undo works on every edit.",
+        "Words that differ from the script are flagged, with “Update the script”. One-click: remove ums, shorten long pauses."],
+  home:["Pick the kind first, inside the composer, so the options below match it.",
+        "Options become compact menus in one row; the questions-first toggle stays visible.",
+        "Recent projects as cards with a picture, length and voice status."]
+};
+function showNotes(id){document.getElementById("notes").innerHTML=`<h4>What's new on this screen</h4><ol>${NOTES[id].map(n=>`<li>${n}</li>`).join("")}</ol>`}
+
+/* ------------------------------------------------------------------ switching */
+let cur="edit";
+function go(id){cur=id;document.querySelectorAll(".win").forEach(w=>w.classList.toggle("on",w.id===id));document.querySelectorAll("[data-go]").forEach(b=>b.dataset.on=String(b.dataset.go===id));showNotes(id);requestAnimationFrame(paint)}
+document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+document.getElementById("themeBtn").onclick=(e)=>{const dark=document.documentElement.dataset.theme!=="dark";document.documentElement.dataset.theme=dark?"dark":"light";e.target.textContent=dark?"Light":"Dark";requestAnimationFrame(paint)};
+document.getElementById("notesBtn").onclick=(e)=>{const n=document.getElementById("notes");n.classList.toggle("hide");e.target.dataset.on=String(!n.classList.contains("hide"))};
+addEventListener("resize",()=>requestAnimationFrame(paint));
+const start = new URLSearchParams(location.search).get("s"); if(start) go(start); else go("edit");
+if(new URLSearchParams(location.search).get("light")){document.documentElement.dataset.theme="light"}
+if(new URLSearchParams(location.search).get("dark")){document.documentElement.dataset.theme="dark";requestAnimationFrame(paint)}
+</script>
+</body>
+</html>
