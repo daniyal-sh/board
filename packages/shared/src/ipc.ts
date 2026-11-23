@@ -35,6 +35,8 @@ import type {
   ProjectSummary,
   NarrationInfo,
   VoiceOption,
+  TakeInfo,
+  TakeEdit,
   AgentSettings,
   ProviderModels,
   Aspect,
@@ -142,8 +144,20 @@ export interface StudioApi {
     saveScript(projectId: string, sceneId: string, text: string): Promise<void>;
     info(projectId: string, sceneId: string): Promise<NarrationInfo | null>;
     generate(projectId: string, sceneId: string, opts: { voice: string; speed: number }): Promise<NarrationInfo>;
-    /** Raw 16 kHz mono samples of the teacher's recording. */
-    saveRecording(projectId: string, sceneId: string, pcm16k: Float32Array): Promise<NarrationInfo>;
+    /**
+     * Raw 16 kHz mono samples of the teacher's recording, saved as a new take and put in use.
+     * marks: cue times the teacher tapped while recording (seconds into the take); cues not
+     * tapped are found with speech recognition.
+     */
+    saveRecording(projectId: string, sceneId: string, pcm16k: Float32Array, opts?: { marks?: Record<string, number> }): Promise<NarrationInfo>;
+    /** Loudness of the narration in use (or of a take), 0..1 per bucket. */
+    peaks(projectId: string, sceneId: string, buckets: number): Promise<number[] | null>;
+    takes(projectId: string, sceneId: string): Promise<TakeInfo[]>;
+    useTake(projectId: string, sceneId: string, takeId: string): Promise<NarrationInfo>;
+    /** Cut, re-record part of, or move the cues of the take in use; the scene re-times. */
+    editTake(projectId: string, sceneId: string, edit: TakeEdit): Promise<NarrationInfo>;
+    /** Undo the last edit of the take in use. */
+    undoTakeEdit(projectId: string, sceneId: string): Promise<NarrationInfo | null>;
     remove(projectId: string, sceneId: string): Promise<void>;
     /**
      * Assistant writes every scene's script, then each is voiced and re-timed.
@@ -198,6 +212,11 @@ export const IPC = {
   voiceGenerate: "voice:generate",
   voiceRecording: "voice:recording",
   voiceRemove: "voice:remove",
+  voicePeaks: "voice:peaks",
+  voiceTakes: "voice:takes",
+  voiceUseTake: "voice:useTake",
+  voiceEditTake: "voice:editTake",
+  voiceUndoTake: "voice:undoTake",
   voiceAuto: "voice:auto",
   voiceProgress: "voice:progress",
 } as const;

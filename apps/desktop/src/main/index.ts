@@ -1,8 +1,8 @@
 import "./early-env";
 import fs from "node:fs";
 import { join } from "node:path";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell } from "electron";
-import { BRAND, DEFAULT_ACCESS, IPC, type AgentEvent, type AgentProviderId, type AgentSettings, type ApprovalDecision, type CreateProjectInput, type Selection } from "@studio/shared";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, session, shell } from "electron";
+import { BRAND, DEFAULT_ACCESS, IPC, type AgentEvent, type AgentProviderId, type AgentSettings, type ApprovalDecision, type CreateProjectInput, type Selection, type TakeEdit } from "@studio/shared";
 import { providerStatus } from "./agents/detect";
 import { agentDefaults, providerModels, setAgentDefaults } from "./agents/models";
 import { interruptAgent, sendToAgent, stopAllAgents } from "./agents/manager";
@@ -192,10 +192,31 @@ function registerIpc(): void {
     await afterNarration(id, scene, progress);
     return info;
   });
-  handle(IPC.voiceRecording, async (id: string, scene: string, pcm: Float32Array) => {
+  handle(IPC.voiceRecording, async (id: string, scene: string, pcm: Float32Array, opts?: { marks?: Record<string, number> }) => {
     const progress = (m: string) => win?.webContents.send(IPC.voiceProgress, m);
-    const info = await voice.narrationFromRecording(id, scene, new Float32Array(pcm), progress);
+    const info = await voice.narrationFromRecording(id, scene, new Float32Array(pcm), progress, opts?.marks);
     await afterNarration(id, scene, progress);
+    return info;
+  });
+  handle(IPC.voicePeaks, (id: string, scene: string, buckets: number) => voice.narrationPeaks(id, scene, buckets));
+  handle(IPC.voiceTakes, (id: string, scene: string) => voice.listTakes(id, scene));
+  handle(IPC.voiceUseTake, async (id: string, scene: string, take: string) => {
+    const progress = (m: string) => win?.webContents.send(IPC.voiceProgress, m);
+    const info = voice.useTake(id, scene, take);
+    await afterNarration(id, scene, progress);
+    return info;
+  });
+  handle(IPC.voiceEditTake, async (id: string, scene: string, edit: TakeEdit) => {
+    const progress = (m: string) => win?.webContents.send(IPC.voiceProgress, m);
+    const fixed = edit.type === "replace" ? { ...edit, pcm16k: new Float32Array(edit.pcm16k) } : edit;
+    const info = await voice.editTake(id, scene, fixed, progress);
+    await afterNarration(id, scene, progress);
+    return info;
+  });
+  handle(IPC.voiceUndoTake, async (id: string, scene: string) => {
+    const progress = (m: string) => win?.webContents.send(IPC.voiceProgress, m);
+    const info = voice.undoTakeEdit(id, scene);
+    if (info) await afterNarration(id, scene, progress);
     return info;
   });
   handle(IPC.voiceRemove, async (id: string, scene: string) => {
@@ -205,7 +226,24 @@ function registerIpc(): void {
 
 }
 
+/**
+ * Only what Board uses: the microphone (for recording narration, from the app itself, never
+ * from a preview), fullscreen, and copying to the clipboard. Everything else is refused.
+ */
+function limitPermissions(): void {
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+    if (permission === "fullscreen" || permission === "clipboard-sanitized-write") return callback(true);
+    if (permission === "media") {
+      const url = details.requestingUrl ?? "";
+      const media = (details as { mediaTypes?: string[] }).mediaTypes ?? [];
+      return callback(!url.startsWith(`${PREVIEW_SCHEME}:`) && media.every((m) => m === "audio"));
+    }
+    callback(false);
+  });
+}
+
 app.whenReady().then(async () => {
+  limitPermissions();
   ensureLabKit();
   handlePreviewProtocol();
   registerIpc();

@@ -150,6 +150,30 @@ export default async function (scene: Scene) {
   const pcm24 = new Float32Array((wav.length - 44) / 2).map((_, i) => wav.readInt16LE(44 + i * 2) / 32768);
   const pcm16 = new Float32Array(Math.floor(pcm24.length / 1.5)).map((_, i) => pcm24[Math.floor(i * 1.5)]);
   const rec = await voice.narrationFromRecording(id, "01_circle", pcm16, (m) => console.log("[asr]", m));
+  // Takes: a second take with a tapped cue, cut / undo / patch / retime, then back to take 1.
+  const quiet = () => {};
+  const take2 = await voice.narrationFromRecording(id, "01_circle", pcm16, quiet, { square: 5.2 });
+  const takesAfter2 = voice.listTakes(id, "01_circle").map((t) => ({ id: t.id, active: t.active, duration: t.duration }));
+  const firstWordEnd = take2.words?.find((w) => /circle/i.test(w.w))?.e ?? 1.2;
+  const cut = await voice.editTake(id, "01_circle", { type: "cut", start: 0, end: firstWordEnd + 0.05 }, quiet);
+  const canUndo = voice.listTakes(id, "01_circle").find((t) => t.active)?.canUndo;
+  const undone = voice.undoTakeEdit(id, "01_circle");
+  const patch = pcm16.slice(Math.floor(2.1 * 16000), Math.floor(3.6 * 16000));
+  const replaced = await voice.editTake(id, "01_circle", { type: "replace", start: 0.1, end: firstWordEnd, pcm16k: patch }, quiet);
+  const retimed = await voice.editTake(id, "01_circle", { type: "marks", marks: { square: 4.4 } }, quiet);
+  const peaks = voice.narrationPeaks(id, "01_circle", 200);
+  const back = voice.useTake(id, "01_circle", voice.listTakes(id, "01_circle")[0].id);
+  report.takes = {
+    take2Marks: take2.marks,
+    takesAfter2,
+    firstWordEnd,
+    cut: { duration: cut.duration, marks: cut.marks, firstWords: cut.words?.slice(0, 4).map((w) => w.w).join(" "), canUndo },
+    undone: undone && { duration: undone.duration, marks: undone.marks },
+    replaced: { duration: replaced.duration, marks: replaced.marks, firstWords: replaced.words?.slice(0, 6).map((w) => w.w).join(" ") },
+    retimed: retimed.marks,
+    peaks: peaks && { n: peaks.length, max: Math.max(...peaks) },
+    back: { take: back.take, marks: back.marks, duration: back.duration },
+  };
   // Restore the AI narration for the preview build.
   await voice.generateNarration(id, "01_circle", { voice: "af_heart", speed: 1 }, () => {});
   const res = await buildPreview(id);
@@ -247,7 +271,18 @@ async function uiCase(out: string, report: Record<string, unknown>) {
     webPreferences: { offscreen: true, preload: paths.preload, sandbox: true, contextIsolation: true },
   });
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const shot = async (name: string) => fs.writeFileSync(join(out, `ui-${name}.png`), (await win.webContents.capturePage()).toPNG());
+  const shot = async (name: string) => {
+    // Offscreen capture sometimes fails while a video is decoding; try again shortly after.
+    for (let i = 0; ; i++) {
+      try {
+        fs.writeFileSync(join(out, `ui-${name}.png`), (await win.webContents.capturePage()).toPNG());
+        return;
+      } catch (e) {
+        if (i >= 4) throw e;
+        await new Promise((r) => setTimeout(r, 700));
+      }
+    }
+  };
   const js = (code: string) => win.webContents.executeJavaScript(code);
   const clickText = (text: string) =>
     js(`(() => { const el = [...document.querySelectorAll("button")].find(b => b.textContent.toLowerCase().includes(${JSON.stringify(text.toLowerCase())})); if (el) { el.click(); return true } return false })()`);
@@ -261,6 +296,12 @@ async function uiCase(out: string, report: Record<string, unknown>) {
   await shot("home");
   const target = process.env.STUDIO_SELFTEST_UI_PROJECT ?? "Interior Angles";
   report.uiOpened = await clickText(target);
+  if (!report.uiOpened) {
+    // Not among the recent ones on Home: open it from the Projects page.
+    await clickText("All projects");
+    await wait(1200);
+    report.uiOpened = await clickText(target);
+  }
   await wait(5000);
   await shot("studio");
   // Scripted steps: [{"click":"text"},{"css":"selector"},{"wait":ms},{"shot":"name"},{"js":"code"}]
