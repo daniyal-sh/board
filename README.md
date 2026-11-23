@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/web-animation.png" width="900" alt="Board with a web animation on why the derivative of sine is cosine: scenes on the left, the animation and its timeline in the middle, the assistant on the right">
+  <img src="docs/screenshots/web-animation.png" width="900" alt="Board with a web animation on why the derivative of sine is cosine: the animation with its timeline, and the assistant on the right">
 </p>
 
 ---
@@ -40,12 +40,14 @@ Then keep shaping it: click anything in the preview and say what should change, 
 - **Short or long, landscape or vertical.** From a 20-second reel to a full lesson.
 
 **See it, scrub it, change it**
-- **A real player.** Play, pause, scrub, jump scene to scene, with a filmstrip of scene thumbnails on the timeline.
+- **A real timeline.** Scenes, every animation step, the ◆ cues and the voice on one zoomable strip. Scrub, change speed, loop a scene, turn captions on and off; click a step to see where it comes from and ask for a change. Keyboard: Space, ← →, `,` `.` for frames, `[` `]` for scenes.
 - **Click to edit.** Select an object in a video, a web animation or a Lab, and the assistant knows exactly which part you mean, down to the source line.
 - **Undo and versions.** Every change is saved. Undo the last one, or restore any earlier version.
 
-**Narration that drives the timing**
-- AI voices that run on your computer (Kokoro), or record your own (aligned with Whisper, also local).
+**Voice-over that drives the timing**
+- **Script & AI voice.** Write each scene's script yourself or have the assistant write it, then an AI voice that runs on your computer (Kokoro) reads it.
+- **Record your own voice.** The animation plays scene by scene while you read from a teleprompter. It holds at each ◆ cue until you press Space, so the picture moves exactly when you say the word.
+- **Fix a take like a document.** Every word you said sits under the waveform (Whisper, also local). Select words to cut them or re-record just that bit, drag a cue to retime an animation, and switch between takes. Every take is kept.
 - Put a `{{mark:name}}` cue before a word and the animation waits for it. Captions come for free.
 
 **An assistant that checks its own work**
@@ -60,12 +62,15 @@ Then keep shaping it: click anything in the preview and say what should change, 
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/video-vertical.png" alt="A vertical Manim reel proving Pythagoras, with its scene filmstrip and voice cues"></td>
-    <td><img src="docs/screenshots/narration.png" alt="Narration for each scene, voiced with a local AI voice or recorded"></td>
+    <td><img src="docs/screenshots/voice-over.png" alt="Voice-over: each scene's script with its cues, the sentence being spoken highlighted, and an AI voice on this computer"></td>
+    <td><img src="docs/screenshots/recording.png" alt="Recording your own voice: the animation waits at the cue until you press Space, with the script as a teleprompter"></td>
   </tr>
   <tr>
+    <td><img src="docs/screenshots/video-vertical.png" alt="A vertical Manim reel proving Pythagoras, with its scene, step, cue and voice tracks on the timeline"></td>
     <td><img src="docs/screenshots/lab.png" alt="A projectile motion Lab with sliders, a live trajectory and a hit-the-target challenge"></td>
-    <td><img src="docs/screenshots/home.png" alt="Home: describe an idea, choose the format, recent projects"></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/home.png" alt="Home: pick a video, web animation or Lab, describe the idea, recent projects as cards"></td>
   </tr>
 </table>
 
