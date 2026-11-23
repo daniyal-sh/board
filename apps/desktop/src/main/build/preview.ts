@@ -196,6 +196,8 @@ export function webSceneThumbnails(projectId: string): Promise<number> {
     }
     const out = join(projects.dir(projectId), "build", "thumbs");
     fs.mkdirSync(out, { recursive: true });
+    // Pictures of the animation, without the narration captions over them.
+    await win.webContents.executeJavaScript(`window.postMessage({ __studio: 1, type: "player", cmd: "captions", value: false }, "*")`).catch(() => {});
     for (const s of scenes) {
       await win.webContents.executeJavaScript(`window.__studioPlayer.seek(${s.start + (s.end - s.start) * 0.6})`).catch(() => {});
       await new Promise((r) => setTimeout(r, 300));

@@ -44,6 +44,10 @@ const captionEl = document.getElementById("caption")!;
 const player = new Player(stage, { ${frame}backgroundColor: "#0E0E12", allowExport: false, autoHideMs: 2200 });
 
 const segments: { id: string; title: string; start: number; end: number }[] = [];
+/** Where each {{mark:…}} cue sits on the timeline: the moment the animation after it starts. */
+const cues: { scene: string; name: string; t: number }[] = [];
+let showCaptions = true;
+let rate = 1;
 const audios = new Map<string, HTMLAudioElement>();
 for (const [id, n] of Object.entries(narration)) {
   const a = new Audio(n.audio);
@@ -62,6 +66,7 @@ async function record() {
         const at = n?.marks[mark];
         const delta = at === undefined ? 0.4 : t0 + at - player.timeline.getDuration();
         if (delta > 0.01) await rec.wait(delta);
+        cues.push({ scene: s.id, name: String(mark), t: player.timeline.getDuration() });
       };
       // Scenes are written against Scene; forward anything the recorder doesn't handle.
       // add() and remove() happen instantly at that point of the timeline (as tiny fades),
@@ -159,6 +164,7 @@ function syncAudio() {
     const local = seg && seg.id === id ? t - seg.start : -1;
     const shouldPlay = player.isPlaying && local >= 0 && local < n.duration;
     if (shouldPlay) {
+      if (a.playbackRate !== rate) a.playbackRate = rate;
       if (Math.abs(a.currentTime - local) > 0.25) a.currentTime = local;
       if (a.paused) a.play().catch(() => {});
     } else if (!a.paused) a.pause();
@@ -166,7 +172,7 @@ function syncAudio() {
   const n = seg ? narration[seg.id] : undefined;
   const local = seg ? t - seg.start : 0;
   const cap = n?.captions.find((c) => local >= c.start && local <= c.end + 0.15);
-  captionEl.textContent = cap ? cap.text : "";
+  captionEl.textContent = cap && showCaptions ? cap.text : "";
   requestAnimationFrame(syncAudio);
 }
 
@@ -193,6 +199,10 @@ window.addEventListener("message", (e) => {
   else if (d.cmd === "pause") player.pause();
   else if (d.cmd === "toggle") player.togglePlayPause();
   else if (d.cmd === "seek") player.seek(Math.max(0, Math.min(player.timeline.getDuration(), Number(d.time) || 0)));
+  else if (d.cmd === "rate") {
+    rate = Math.max(0.25, Math.min(3, Number(d.value) || 1));
+    player.setPlaybackRate(rate);
+  } else if (d.cmd === "captions") showCaptions = Boolean(d.value);
 });
 
 record().then(
@@ -216,7 +226,27 @@ record().then(
       duration: () => player.timeline.getDuration(),
       layout: () => layoutNow(),
     };
-    if (preview) parent.postMessage({ __studio: 1, type: "player.ready", scenes: segments, segments: timeline, duration: player.timeline.getDuration() }, "*");
+    if (preview)
+      parent.postMessage(
+        {
+          __studio: 1,
+          type: "player.ready",
+          scenes: segments,
+          segments: timeline,
+          steps: player.timeline
+            .getSegments()
+            .filter((s: any) => !s.isWait && s.endTime - s.startTime > 0.01)
+            .map((s: any) => ({
+              start: s.startTime,
+              end: s.endTime,
+              scene: segments.find((g) => s.startTime >= g.start - 1e-6 && s.startTime < g.end)?.id ?? "",
+              label: (s.animations ?? []).map((a: any) => kindOf(a, ANIMATION_KINDS) ?? "Animation").join(" + ") || "Animation",
+            })),
+          cues,
+          duration: player.timeline.getDuration(),
+        },
+        "*",
+      );
     player.seek(0);
     // The assistant's inspector loads the preview on its own (not inside the app) and takes
     // pictures over time, so it plays straight away. In the app, the teacher presses play.
@@ -241,6 +271,8 @@ export function webShellHtml(title: string, aspect: Aspect = "landscape"): strin
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${safe}</title>
+<!-- manim-web draws its maths itself; this stops it fetching KaTeX's stylesheet from a CDN (the page works offline). -->
+<style id="manimweb-katex-styles"></style>
 <style>
   html, body { margin: 0; height: 100%; background: #0E0E12; }
   body { display: grid; place-items: center; font-family: system-ui, sans-serif; overflow: hidden; }

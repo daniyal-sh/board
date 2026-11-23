@@ -112,7 +112,35 @@ export interface NarrationInfo {
   audioUrl: string;
   /** The script changed since this audio was made. */
   stale: boolean;
+  /** Recordings: every word heard, with times in seconds. */
+  words?: SpokenWord[];
+  /** Recordings: which take is in use. */
+  take?: string;
 }
+
+export interface SpokenWord {
+  w: string;
+  s: number;
+  e: number;
+}
+
+/** One recording of a scene. Every take is kept; one is in use. */
+export interface TakeInfo {
+  id: string;
+  /** 1-based, in the order they were recorded. */
+  n: number;
+  duration: number;
+  createdAt: string;
+  active: boolean;
+  /** An edit can be undone. */
+  canUndo?: boolean;
+}
+
+/** Edits to the take in use. Times are seconds into the take. */
+export type TakeEdit =
+  | { type: "cut"; start: number; end: number }
+  | { type: "replace"; start: number; end: number; pcm16k: Float32Array }
+  | { type: "marks"; marks: Record<string, number> };
 
 /** A project as listed in the app (manifest plus where it lives). */
 export interface ProjectSummary {
