@@ -23,7 +23,8 @@ export interface SceneTimeline {
   scene: string;
   duration: number;
   marks: Record<string, number>;
-  plays: { kind: "play" | "wait" | "mark"; label: string; start: number; end: number; line: number | null }[];
+  /** "stop": a slide step ends here (self.next_slide() in a Slides project). */
+  plays: { kind: "play" | "wait" | "mark" | "stop"; label: string; start: number; end: number; line: number | null; loop?: boolean }[];
   parts: { name: string; type: string; line: number | null; boxes: { t: number; x0: number; y0: number; x1: number; y1: number }[] }[];
 }
 import type {
@@ -40,6 +41,7 @@ import type {
   AgentSettings,
   ProviderModels,
   Aspect,
+  SlidesEngine,
 } from "./project.ts";
 
 export interface AppInfo {
@@ -52,8 +54,10 @@ export interface CreateProjectInput {
   kind: ProjectKind;
   prompt: string;
   length: ProjectLength;
-  /** Videos and web animations: landscape (16:9) or vertical (9:16) for Shorts and Reels. */
+  /** Videos, web animations and slides: landscape (16:9) or vertical (9:16) for Shorts and Reels. */
   aspect?: Aspect;
+  /** Slides: Manim video or manim-web for the animated slides. */
+  engine?: SlidesEngine;
   title?: string;
   provider?: AgentProviderId;
   /** Model, reasoning and speed for the new project (defaults are used when omitted). */
@@ -115,8 +119,10 @@ export interface StudioApi {
     undo(id: string): Promise<{ undone: string; message: string } | null>;
   };
   build: {
-    /** Lab / web: rebuild the preview. Video: render a draft of one scene. */
+    /** Lab / web: rebuild the preview. Video: render a draft of one scene. Slides: the animation timeline. */
     preview(projectId: string, sceneId?: string): Promise<BuildResult>;
+    /** Slides: build the deck (Manim slides: renders missing drafts first; progress on video.onProgress). */
+    deck(projectId: string): Promise<BuildResult & { warnings: string[] }>;
     exportHtml(projectId: string): Promise<{ path: string } | null>;
     /** Web animations: capture a picture of each scene for the storyboard. */
     thumbnails(projectId: string): Promise<void>;
@@ -186,6 +192,7 @@ export const IPC = {
   projectsRestore: "projects:restore",
   projectsUndo: "projects:undo",
   buildPreview: "build:preview",
+  buildDeck: "build:deck",
   buildExportHtml: "build:exportHtml",
   buildCopyHtml: "build:copyHtml",
   buildThumbs: "build:thumbs",

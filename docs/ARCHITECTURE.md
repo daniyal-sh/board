@@ -9,6 +9,7 @@ A desktop app for teachers that makes three kinds of things with an AI agent the
 | **Video** | Manim Community (Python, local) | MP4 + SRT, GIF; 16:9 or 9:16 |
 | **Web animation** | manim-web (TypeScript, in the browser) | Single HTML file, GIF; 16:9 or 9:16 |
 | **Lab** | Any of the bundled web libraries | Single self-contained HTML file |
+| **Slides** | Manim or manim-web (the project's engine) for animated slides, HTML for the rest | Single HTML deck; 16:9 or 9:16 |
 
 ## Repository layout
 
@@ -35,6 +36,8 @@ python/
   .git/               history and undo (teachers never see git)
   AGENTS.md / CLAUDE.md   generated guidance for the agent, per kind
   scenes/01_hook.py | .ts   one scene per file (videos and web animations)
+  scenes/02_idea.html       Slides: an HTML slide (animated slides are .py or .ts, per the engine)
+  notes/<slide>.md          Slides: speaker notes
   lab/index.html, lab/main.ts, lab/style.css   (Labs)
   narration/<scene>.md      narration scripts with {{mark:name}} cues
   build/              renders, previews, thumbnails, narration audio (git-ignored)
@@ -65,6 +68,8 @@ Board tools (a local MCP server, 127.0.0.1 with a random token, scoped to the op
 
 - **Lab / web animation**: esbuild bundles against vendored libraries (no network), then inlines JS, CSS and fonts into one HTML file. The preview runs in a sandboxed iframe on a custom protocol. Web animations are recorded into one manim-web Player timeline, which the app drives (play, scrub, jump scenes) and which syncs narration.
 - **Video**: Manim per scene with the `studio_manim` plugin, which writes a timeline (plays, marks, object boxes, source lines). Drafts are joined for the whole-video preview; the export renders in high quality, joins without re-encoding and writes SRT.
+- **Slides**: `build/deck.ts` generates an entry that loads the deck runtime (`packages/lab-kit/src/deck`), then each slide in order. HTML slides are virtual modules that insert their markup (with scoped CSS) as they load, so their own `<script type="module">` finds its elements. Animated slides go to one animator: manim-web slides are recorded into one Player timeline, Manim slides are rendered clips. A step ends at `scene.nextSlide()` / `self.next_slide()` (a `stop` in the studio_manim timeline) or at a `data-step` on an HTML slide; next plays the step, back shows the end of the previous step. The slide canvas is fixed (1920×1080 or 1080×1920) and scaled to the screen.
+- **MathJax**: manim-web typesets `MathTex` with MathJax. Its 11 MB bundle is stubbed out and MathJax's 2 MB TeX-to-SVG component is inlined instead on pages that use manim-web, so maths works offline.
 - **GIF**: videos via PyAV + Pillow (one shared palette); web animations by stepping the recorded timeline in a hidden window and encoding with gifenc.
 
 ## Voice

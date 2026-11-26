@@ -2,14 +2,14 @@ import "./early-env";
 import fs from "node:fs";
 import { join } from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, session, shell } from "electron";
-import { BRAND, DEFAULT_ACCESS, IPC, type AgentEvent, type AgentProviderId, type AgentSettings, type ApprovalDecision, type CreateProjectInput, type Selection, type TakeEdit } from "@studio/shared";
+import { BRAND, DEFAULT_ACCESS, IPC, animationKind, type AgentEvent, type AgentProviderId, type AgentSettings, type ApprovalDecision, type CreateProjectInput, type Selection, type TakeEdit } from "@studio/shared";
 import { providerStatus } from "./agents/detect";
 import { agentDefaults, providerModels, setAgentDefaults } from "./agents/models";
 import { interruptAgent, sendToAgent, stopAllAgents } from "./agents/manager";
 import { disposeAllCodex } from "./agents/codex";
 import { answerQuestions, resetAlways, respond as respondApproval } from "./agents/approvals";
 import { setSelection, startToolServer } from "./agents/tools";
-import { buildExport, buildPreview, handlePreviewProtocol, webGif, webSceneThumbnails, registerPreviewScheme, PREVIEW_SCHEME } from "./build/preview";
+import { buildDeckPreview, buildExport, buildPreview, deckThumbnails, handlePreviewProtocol, webGif, webSceneThumbnails, registerPreviewScheme, PREVIEW_SCHEME } from "./build/preview";
 import { listHistory, restoreTo, undoLast } from "./history";
 import { ensureLabKit, paths } from "./paths";
 import { projects } from "./projects";
@@ -113,7 +113,7 @@ function registerIpc(): void {
   );
 
   handle(IPC.buildPreview, async (id: string, sceneId?: string) => {
-    if (projects.manifest(id).kind !== "video") return buildPreview(id);
+    if (animationKind(projects.manifest(id)) !== "video") return buildPreview(id);
     const r = await video.renderPreview(id, sceneId);
     return { ok: r.ok, errors: r.ok ? [] : [r.log] };
   });
@@ -131,8 +131,11 @@ function registerIpc(): void {
     return { path: res.filePath };
   });
 
+  handle(IPC.buildDeck, (id: string) => buildDeckPreview(id, (m) => win?.webContents.send(IPC.videoProgress, m)));
   handle(IPC.buildThumbs, async (id: string) => {
-    if (projects.manifest(id).kind === "web") await webSceneThumbnails(id);
+    const kind = projects.manifest(id).kind;
+    if (kind === "web") await webSceneThumbnails(id);
+    else if (kind === "slides") await deckThumbnails(id);
   });
   handle(IPC.buildCopyHtml, async (id: string) => {
     const built = await buildExport(id);
@@ -177,7 +180,7 @@ function registerIpc(): void {
     } else if (m.kind === "web") {
       await buildPreview(id);
       await webGif(id, res.filePath, { width, height: Math.round(vertical ? width * 16 / 9 : width * 9 / 16), fps: 15 });
-    } else throw new Error("Labs are interactive pages; export them as HTML instead.");
+    } else throw new Error(m.kind === "slides" ? "Slides are presented step by step; export them as HTML instead." : "Labs are interactive pages; export them as HTML instead.");
     return { path: res.filePath, sizeBytes: fs.statSync(res.filePath).size };
   });
   handle(IPC.voiceList, () => voice.VOICES);

@@ -396,6 +396,7 @@ export async function runSelftest(out: string): Promise<void> {
       }
     }
     if (mode === "formats") await formatsCase(out, report);
+    if (mode === "slides") await (await import("./selftest-slides")).slidesCase(out, report);
     if (mode === "inspect") await inspectCase(out, report);
     if (mode === "demo") await demoCase(report);
     if (mode === "guided") {

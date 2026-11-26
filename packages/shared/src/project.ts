@@ -1,11 +1,28 @@
 /** What a project produces. */
-export type ProjectKind = "video" | "web" | "lab";
+export type ProjectKind = "video" | "web" | "lab" | "slides";
 
 export const PROJECT_KINDS: Record<ProjectKind, { label: string; engine: string; blurb: string }> = {
   video: { label: "Video", engine: "Manim Community", blurb: "MP4 rendered on your computer" },
   web: { label: "Web animation", engine: "manim-web", blurb: "Plays in any browser, shareable link" },
   lab: { label: "Lab", engine: "HTML", blurb: "An interactive page students can explore" },
+  slides: { label: "Slides", engine: "Manim or manim-web", blurb: "A deck you present step by step" },
 };
+
+/** What draws the animated slides of a Slides project. HTML slides work with either. */
+export type SlidesEngine = "video" | "web";
+export const SLIDES_ENGINES: Record<SlidesEngine, { label: string; hint: string }> = {
+  web: { label: "manim-web", hint: "Animations play live in the browser; nothing to install or render" },
+  video: { label: "Manim video", hint: "Manim Community renders each animated slide on your computer" },
+};
+
+/**
+ * How a project's animations are made: Manim videos ("video"), manim-web ("web"), or none (Labs).
+ * Slides follow their engine.
+ */
+export function animationKind(m: { kind: ProjectKind; engine?: SlidesEngine }): "video" | "web" | null {
+  if (m.kind === "slides") return m.engine ?? "web";
+  return m.kind === "lab" ? null : m.kind;
+}
 
 export type ProjectLength = "short" | "explainer" | "lesson";
 
@@ -71,6 +88,8 @@ export interface SceneMeta {
   durationSec?: number;
   /** Picture of the scene for the storyboard and timeline. */
   thumbUrl?: string;
+  /** Slides: an animated slide (Manim or manim-web) or an HTML slide. */
+  slideType?: "animation" | "html";
 }
 
 
@@ -83,8 +102,10 @@ export interface ProjectManifest {
   /** The title was guessed from the first prompt; replace it once the content has a real one. */
   titleAuto?: boolean;
   length: ProjectLength;
-  /** Videos and web animations. Unset means landscape. */
+  /** Videos, web animations and slides. Unset means landscape. */
   aspect?: Aspect;
+  /** Slides: what draws the animated slides. Unset means manim-web. */
+  engine?: SlidesEngine;
   /** Free-text audience, e.g. "Grade 11". */
   audience?: string;
   createdAt: string;
@@ -150,6 +171,7 @@ export interface ProjectSummary {
   updatedAt: string;
   dir: string;
   aspect?: Aspect;
+  engine?: SlidesEngine;
   sceneCount?: number;
   /** Screenshot of the latest preview, when there is one. */
   thumbUrl?: string;

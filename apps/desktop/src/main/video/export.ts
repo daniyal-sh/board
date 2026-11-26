@@ -12,7 +12,7 @@ export async function exportFinalVideo(id: string, outPath: string, captions: bo
   const files: string[] = [];
   const captionParts: { sceneId: string; offset: number; projectId: string }[] = [];
   let offset = 0;
-  for (const s of m.scenes) {
+  for (const s of m.scenes.filter((x) => x.file.endsWith(".py"))) {
     const r = await video.renderFinal(id, s.id);
     if (!r.ok) throw new Error(`Scene "${s.title}" failed to render:\n${r.log}`);
     files.push(join(projects.dir(id), "build", "final", `${s.id}.mp4`));

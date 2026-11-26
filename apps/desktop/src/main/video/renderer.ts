@@ -16,7 +16,7 @@ export interface SceneTimeline {
   scene: string;
   duration: number;
   marks: Record<string, number>;
-  plays: { kind: "play" | "wait" | "mark"; label: string; start: number; end: number; line: number | null }[];
+  plays: { kind: "play" | "wait" | "mark" | "stop"; label: string; start: number; end: number; line: number | null; loop?: boolean }[];
   parts: { name: string; type: string; line: number | null; boxes: { t: number; x0: number; y0: number; x1: number; y1: number; o?: number }[] }[];
 }
 
@@ -190,7 +190,8 @@ function concat(out: string, inputs: string[], cwd: string): Promise<void> {
  */
 async function fullPreview(projectId: string, progress: (message: string) => void): Promise<FullPreview> {
   const dir = projects.dir(projectId);
-  const scenes = projects.manifest(projectId).scenes;
+  // Slides: only the animated slides are Manim scenes.
+  const scenes = projects.manifest(projectId).scenes.filter((s) => s.file.endsWith(".py"));
   const failed: FullPreview["failed"] = [];
   if (!videoEnvStatus().ready) return { ok: false, duration: 0, segments: [], failed: [{ sceneId: "", title: "", log: "Video tools are not installed yet." }] };
 
@@ -227,7 +228,22 @@ async function fullPreview(projectId: string, progress: (message: string) => voi
   return { ok: true, url, duration: t, segments, failed };
 }
 
+/** Render the drafts of scenes that are missing or out of date (Slides: the animated slides). */
+async function renderStale(projectId: string, progress: (message: string) => void): Promise<{ sceneId: string; title: string; log: string }[]> {
+  const dir = projects.dir(projectId);
+  if (!videoEnvStatus().ready) return [];
+  const stale = projects.manifest(projectId).scenes.filter((s) => s.file.endsWith(".py") && draftIsStale(dir, s.id));
+  const failed: { sceneId: string; title: string; log: string }[] = [];
+  for (const [i, s] of stale.entries()) {
+    progress(`Rendering “${s.title}” (${i + 1} of ${stale.length})…`);
+    const r = await render(projectId, s.id, "draft");
+    if (!r.ok) failed.push({ sceneId: s.id, title: s.title, log: r.log });
+  }
+  return failed;
+}
+
 export const video = {
+  renderStale,
   renderPreview: (projectId: string, sceneId?: string) => render(projectId, sceneId, "draft"),
   renderFinal: (projectId: string, sceneId: string) => render(projectId, sceneId, "final"),
   fullPreview,

@@ -6,6 +6,8 @@
   on-screen box of every named mobject after each step, written to the JSON file named by
   the ``STUDIO_TIMELINE_OUT`` environment variable. The app uses it for the timeline and
   for click-to-edit;
+* marks slide steps: ``self.next_slide()`` (Slides projects) records a stop where the presenter's
+  next click continues;
 * syncs to narration: ``self.wait_until("mark")`` waits until the narration reaches a mark.
   Mark times come from the JSON file named by ``STUDIO_NARRATION`` (``{"audio": path,
   "marks": {"name": seconds}}``). Without narration it waits a short default.
@@ -118,6 +120,20 @@ class StudioScene(Scene):
             finally:
                 self._studio_waiting = False
         self._record(caller, start, f"wait for “{mark}”", kind="mark")
+
+    def next_slide(self, loop: bool = False) -> None:
+        """Slides: end the current step here. The presenter's next click plays on from this point.
+
+        ``loop=True`` replays the step that just ended (from the previous stop) until the presenter
+        moves on, for an animation that should keep running while you talk.
+        """
+        frame = inspect.currentframe()
+        caller = frame.f_back if frame else None
+        t = self.studio_time
+        if not hasattr(self, "_studio_plays"):
+            return
+        line = caller.f_lineno if caller else None
+        self._studio_plays.append({"kind": "stop", "label": "next slide" + (" (loop)" if loop else ""), "start": round(t, 3), "end": round(t, 3), "line": line, "loop": bool(loop)})
 
     def play(self, *args: Any, **kwargs: Any) -> None:
         # Manim's own wait() calls play(Wait(...)); that is recorded by wait() instead.

@@ -22,13 +22,14 @@
 
 ---
 
-Board is an open-source desktop app for teachers. Describe an idea, or paste a script, and your own Claude Code or Codex builds it as one of three things:
+Board is an open-source desktop app for teachers. Describe an idea, or paste a script, and your own Claude Code or Codex builds it as one of four things:
 
 | | Made with | You get |
 |---|---|---|
 | **Video** | [Manim Community](https://github.com/ManimCommunity/manim), rendered on your computer | MP4 with captions, or a GIF · 16:9 or 9:16 |
 | **Web animation** | [manim-web](https://github.com/maloyan/manim-web), plays in any browser | One HTML file, or a GIF · 16:9 or 9:16 |
-| **Lab** | An interactive page: sliders, simulations, checks | One HTML file that works offline |
+| **Lab** | An interactive page in whatever form fits: a simulation, an explorable essay, a puzzle, sliders and checks | One HTML file that works offline |
+| **Slides** | A deck you present step by step: Manim or manim-web animations, HTML and interactive slides | One HTML file you present from any browser · 16:9 or 9:16 |
 
 Then keep shaping it: click anything in the preview and say what should change, add a voice-over, and go back to any earlier version.
 

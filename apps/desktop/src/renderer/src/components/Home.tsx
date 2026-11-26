@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { PROJECT_KINDS, type AgentRequest, type AgentSettings, type Aspect, type CreateProjectInput, type ProjectKind, type ProjectLength, type ProjectSummary, type ProviderStatus } from "@studio/shared";
+import { PROJECT_KINDS, SLIDES_ENGINES, type SlidesEngine, type AgentRequest, type AgentSettings, type Aspect, type CreateProjectInput, type ProjectKind, type ProjectLength, type ProjectSummary, type ProviderStatus } from "@studio/shared";
 import { studio, timeAgo } from "../lib/api";
-import { ArrowRight, Check, Flask, KindGlyph, VideoIcon, Wave } from "./Icons";
+import { ArrowRight, Check, Flask, KindGlyph, SlidesIcon, VideoIcon, Wave } from "./Icons";
 import { AgentControls } from "./ModelPicker";
 
 const SUGGESTIONS: { text: string; kind: ProjectKind }[] = [
@@ -9,6 +9,7 @@ const SUGGESTIONS: { text: string; kind: ProjectKind }[] = [
   { text: "A projectile motion lab with sliders for angle and speed", kind: "lab" },
   { text: "Visualise compound interest growing over 30 years", kind: "web" },
   { text: "Let students explore how a and b change y = a·sin(bx)", kind: "lab" },
+  { text: "A lesson on the derivative as the slope of a tangent, for Grade 11", kind: "slides" },
 ];
 
 /** Each project type keeps one signal colour, like Apollo's destination tiles. */
@@ -16,14 +17,15 @@ export const KIND_TILE: Record<ProjectKind, { color: string; soft: string; icon:
   video: { color: "var(--color-accent-ink)", soft: "var(--color-accent-soft)", icon: VideoIcon, hint: "Rendered with Manim on your computer. MP4 or GIF." },
   web: { color: "var(--color-context)", soft: "var(--color-context-soft)", icon: Wave, hint: "Plays in any browser. One HTML file or a GIF." },
   lab: { color: "var(--color-warn)", soft: "var(--color-warn-soft)", icon: Flask, hint: "An interactive page students explore. One HTML file." },
+  slides: { color: "var(--color-voice)", soft: "var(--color-voice-soft)", icon: SlidesIcon, hint: "A deck you present step by step, with animated and interactive slides." },
 };
 
-const KIND_ORDER: ProjectKind[] = ["video", "web", "lab"];
+const KIND_ORDER: ProjectKind[] = ["video", "web", "lab", "slides"];
 
 const LENGTHS: Record<ProjectLength, { label: string; hint: (k: ProjectKind) => string }> = {
-  short: { label: "Short", hint: (k) => (k === "lab" ? "One idea, one interaction" : "Under a minute, one idea") },
-  explainer: { label: "Explainer", hint: (k) => (k === "lab" ? "A few sections to explore" : "Two to four minutes") },
-  lesson: { label: "Full lesson", hint: (k) => (k === "lab" ? "A complete guided activity" : "A whole topic, step by step") },
+  short: { label: "Short", hint: (k) => (k === "lab" ? "One idea, one interaction" : k === "slides" ? "A handful of slides, five minutes" : "Under a minute, one idea") },
+  explainer: { label: "Explainer", hint: (k) => (k === "lab" ? "A few sections to explore" : k === "slides" ? "10 to 15 slides, a short talk" : "Two to four minutes") },
+  lesson: { label: "Full lesson", hint: (k) => (k === "lab" ? "A complete guided activity" : k === "slides" ? "A whole class period" : "A whole topic, step by step") },
 };
 
 export function Home(props: {
@@ -41,6 +43,7 @@ export function Home(props: {
   const [recent, setRecent] = useState<ProjectSummary[]>([]);
   const [agent, setAgent] = useState<AgentSettings | null>(null);
   const [aspect, setAspect] = useState<Aspect>("landscape");
+  const [engine, setEngine] = useState<SlidesEngine>(() => (readText("board.slidesEngine") === "video" ? "video" : "web"));
   const [fromScript, setFromScript] = useState(false);
   const [guided, setGuided] = useState(() => readPref("board.guided", true));
   const timed = kind !== "lab";
@@ -67,7 +70,7 @@ export function Home(props: {
   function start() {
     if (!canStart) return;
     props.onCreate(
-      { kind, prompt: prompt.trim(), length, aspect: timed ? aspect : undefined, agent: agent ?? { provider: ready!.id } },
+      { kind, prompt: prompt.trim(), length, aspect: timed ? aspect : undefined, engine: kind === "slides" ? engine : undefined, agent: agent ?? { provider: ready!.id } },
       { guided, script: timed && fromScript },
     );
   }
@@ -125,7 +128,11 @@ export function Home(props: {
               }}
               placeholder={
                 timed && fromScript
-                  ? "Paste or write your narration. Board splits it into scenes, builds visuals that follow your words, then voices it…"
+                  ? kind === "slides"
+                    ? "Paste what you'll say. Board splits it into slides that follow your words and keeps it as speaker notes…"
+                    : "Paste or write your narration. Board splits it into scenes, builds visuals that follow your words, then voices it…"
+                  : kind === "slides"
+                    ? "Describe the lesson, the class and what students should understand by the end…"
                   : kind === "lab"
                     ? "Describe what students should explore and the controls they get…"
                     : "Describe the idea, the class and what students should understand…"
@@ -134,6 +141,17 @@ export function Home(props: {
             />
           </div>
           <div className="flex flex-wrap items-center gap-1.5 px-3 pb-3 pt-1">
+            {kind === "slides" && (
+              <MenuPill
+                label={SLIDES_ENGINES[engine].label}
+                value={engine}
+                onChange={(v) => {
+                  setEngine(v as SlidesEngine);
+                  writeText("board.slidesEngine", v);
+                }}
+                options={(["web", "video"] as SlidesEngine[]).map((e) => ({ value: e, label: SLIDES_ENGINES[e].label, hint: SLIDES_ENGINES[e].hint }))}
+              />
+            )}
             {timed && (
               <>
                 <MenuPill
@@ -141,8 +159,8 @@ export function Home(props: {
                   value={fromScript ? "script" : "idea"}
                   onChange={(v) => setFromScript(v === "script")}
                   options={[
-                    { value: "idea", label: "From an idea", hint: "The assistant plans the scenes and writes the narration" },
-                    { value: "script", label: "From my script", hint: "Your words drive the scenes and are voiced as written" },
+                    { value: "idea", label: "From an idea", hint: kind === "slides" ? "The assistant plans the slides and writes speaker notes" : "The assistant plans the scenes and writes the narration" },
+                    { value: "script", label: "From my script", hint: kind === "slides" ? "Your words become the slides' speaker notes" : "Your words drive the scenes and are voiced as written" },
                   ]}
                 />
                 <MenuPill
@@ -255,7 +273,7 @@ function ProjectGrid(props: { projects: ProjectSummary[]; onOpen: (id: string) =
           <span className="block px-3 pb-2.5 pt-2">
             <b className="block truncate text-[13.5px] font-semibold">{p.title}</b>
             <small className="text-[12px] text-muted">
-              {p.sceneCount && p.kind !== "lab" ? `${p.sceneCount} scene${p.sceneCount === 1 ? "" : "s"} · ` : ""}
+              {p.sceneCount && p.kind !== "lab" ? `${p.sceneCount} ${p.kind === "slides" ? "slide" : "scene"}${p.sceneCount === 1 ? "" : "s"} · ` : ""}
               {timeAgo(p.updatedAt)}
             </small>
           </span>
@@ -332,7 +350,7 @@ export function ProjectList(props: { projects: ProjectSummary[]; onOpen: (id: st
               <small className="text-[12.5px] text-muted">
                 {PROJECT_KINDS[p.kind].label}
                 {vertical ? " · 9:16" : ""}
-                {p.sceneCount && p.kind !== "lab" ? ` · ${p.sceneCount} scene${p.sceneCount === 1 ? "" : "s"}` : ""}
+                {p.sceneCount && p.kind !== "lab" ? ` · ${p.sceneCount} ${p.kind === "slides" ? "slide" : "scene"}${p.sceneCount === 1 ? "" : "s"}` : ""}
               </small>
             </span>
             <span className="w-[84px] text-right text-[12.5px] text-muted">{timeAgo(p.updatedAt)}</span>
@@ -364,9 +382,9 @@ export function ProjectsPage(props: { onOpen: (id: string) => void; onNew: () =>
           </button>
         </div>
         <div className="tabs mb-4">
-          {(["all", "video", "web", "lab"] as const).map((k) => (
+          {(["all", "video", "web", "lab", "slides"] as const).map((k) => (
             <button key={k} data-on={filter === k} onClick={() => setFilter(k)}>
-              {k === "all" ? "All" : PROJECT_KINDS[k].label + "s"}
+              {k === "all" ? "All" : k === "slides" ? "Slides" : PROJECT_KINDS[k].label + "s"}
               <span className="ml-1.5 text-[12px] text-faint">{(all ?? []).filter((p) => k === "all" || p.kind === k).length}</span>
             </button>
           ))}
@@ -376,7 +394,7 @@ export function ProjectsPage(props: { onOpen: (id: string) => void; onNew: () =>
         ) : shown.length ? (
           <ProjectList projects={shown} onOpen={props.onOpen} />
         ) : (
-          <div className="card p-8 text-center text-muted">{filter === "all" ? "No projects yet." : `No ${PROJECT_KINDS[filter].label.toLowerCase()}s yet.`}</div>
+          <div className="card p-8 text-center text-muted">{filter === "all" ? "No projects yet." : filter === "slides" ? "No slide decks yet." : `No ${PROJECT_KINDS[filter].label.toLowerCase()}s yet.`}</div>
         )}
       </div>
     </div>
@@ -399,6 +417,21 @@ function readPref(key: string, fallback: boolean): boolean {
 function writePref(key: string, value: boolean): void {
   try {
     localStorage.setItem(key, value ? "1" : "0");
+  } catch {
+    /* private mode */
+  }
+}
+
+function readText(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeText(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
   } catch {
     /* private mode */
   }
