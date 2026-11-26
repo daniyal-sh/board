@@ -45,6 +45,16 @@ const api: StudioApi = {
     copyHtml: (id) => invoke(IPC.buildCopyHtml, id),
     thumbnails: (id) => invoke(IPC.buildThumbs, id),
   },
+  present: {
+    start: (id, opts) => invoke(IPC.presentStart, id, opts),
+    command: (cmd) => invoke(IPC.presentCommand, cmd),
+    input: (ev) => invoke(IPC.presentInput, ev),
+    stop: () => invoke(IPC.presentStop),
+    onState: (cb) => subscribe(IPC.presentState, cb),
+    onReady: (cb) => subscribe(IPC.presentReady, cb),
+    onFrame: (cb) => subscribe(IPC.presentFrame, cb),
+    onEnded: (cb) => subscribe(IPC.presentEnded, cb),
+  },
   video: {
     status: () => invoke(IPC.videoStatus),
     setup: () => invoke(IPC.videoSetup),

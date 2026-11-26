@@ -14,6 +14,7 @@ import { listHistory, restoreTo, undoLast } from "./history";
 import { ensureLabKit, paths } from "./paths";
 import { projects } from "./projects";
 import { setMainWindow } from "./window";
+import { presentCommand, presentInput, startPresenting, stopPresenting } from "./present";
 import { exportFinalVideo, exportVideoGif } from "./video/export";
 import { setupVideoEnv, videoEnvStatus, manimEnv, runtime } from "./video/env";
 import { video } from "./video/renderer";
@@ -143,6 +144,11 @@ function registerIpc(): void {
     return { sizeBytes: built.sizeBytes };
   });
 
+  handle(IPC.presentStart, (id: string, opts: { slide?: string; step?: number; windowed?: boolean }) => startPresenting(id, opts));
+  handle(IPC.presentCommand, (cmd: Record<string, unknown>) => presentCommand(cmd));
+  handle(IPC.presentInput, (ev: { type: "down" | "move" | "up"; x: number; y: number; buttons?: number }) => presentInput(ev));
+  handle(IPC.presentStop, () => stopPresenting());
+
   handle(IPC.videoStatus, () => videoEnvStatus());
   handle(IPC.videoSetup, () =>
     setupVideoEnv((step, message) => win?.webContents.send(IPC.videoSetupProgress, { step, message })),
@@ -264,6 +270,7 @@ app.whenReady().then(async () => {
 
 // Don't leave agent CLIs or Codex app-servers running after the app closes.
 app.on("before-quit", () => {
+  stopPresenting();
   stopAllAgents();
   disposeAllCodex();
 });

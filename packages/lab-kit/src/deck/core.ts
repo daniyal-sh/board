@@ -11,6 +11,8 @@
  * it loads, so the slide's own script can find its elements), then calls runDeck().
  */
 import "./deck.css";
+import { createInk, INK_COLORS, type InkOp, type InkTool } from "./ink";
+import { runSpeaker } from "./speaker";
 
 export interface Stop {
   /** Time on the animator's clock (seconds). */
@@ -167,6 +169,18 @@ export async function runDeck(cfg: DeckConfig): Promise<void> {
   addEventListener("resize", fit);
   fit();
 
+  // An exported deck opened as its own speaker view (press S in the deck).
+  if (location.hash === "#speaker") {
+    root!.remove();
+    runSpeaker(cfg.aspect ?? "landscape");
+    return;
+  }
+  /** A copy of the deck that only goes where it is told (speaker view panes, presenter previews). */
+  const follower = params.has("follower");
+  /** The audience window of the app's presenter: reports its position to the app. */
+  const presenting = params.has("present");
+  if (follower) root!.classList.add("deck-follower");
+
   let spans: Record<string, { start: number; stops: Stop[] }> = {};
   if (animator) {
     try {
@@ -230,14 +244,24 @@ export async function runDeck(cfg: DeckConfig): Promise<void> {
     total,
   });
   let lastKey = "";
+  let lastPlace = "";
+  let speaker: Window | null = null;
   const emit = () => {
     const s = state();
     const key = JSON.stringify(s);
     if (key === lastKey) return;
     lastKey = key;
+    // Ink belongs to the step it was drawn on.
+    const place = `${s.slide}:${s.step}`;
+    if (place !== lastPlace) {
+      lastPlace = place;
+      ink?.apply({ op: "clear" });
+    }
     hud.update(s, slides[cur.i]?.def.title ?? "");
     listeners.forEach((f) => f(s));
     if (preview() && window.parent !== window) parent.postMessage({ __studio: 1, type: "deck.state", ...s }, "*");
+    if (speaker && !speaker.closed) speaker.postMessage({ __studio: 1, type: "deck.state", ...s }, "*");
+    if (presenting) console.debug(`__board_deck__${JSON.stringify({ type: "state", ...s })}`);
   };
 
   const range = (s: Slide, k: number) => ({ from: k === 0 ? s.start : s.stops[k - 1].t, to: s.stops[k].t, loop: Boolean(s.stops[k].loop) });
@@ -389,20 +413,36 @@ export async function runDeck(cfg: DeckConfig): Promise<void> {
 
   // ---------------------------------------------------------------- input
 
-  const hud = createHud(root!, api);
-  const overview = createOverview(root!, api);
   const blank = document.createElement("div");
   blank.className = "deck-blank";
   root!.append(blank);
+  const toggleBlank = () => blank.classList.toggle("on");
+  const openSpeaker = () => {
+    if (speaker && !speaker.closed) return speaker.focus();
+    speaker = window.open(`${location.href.split("#")[0]}#speaker`, "board-speaker", "width=1280,height=780");
+  };
+  const ink: ReturnType<typeof createInk> | null = createInk(
+    stage,
+    size,
+    (op) => {
+      if (speaker && !speaker.closed) speaker.postMessage({ __studio: 1, type: "deck.ink", op }, "*");
+    },
+    (t) => hud?.setTool(t),
+  );
+  const hud = createHud(root!, api, { ink, openSpeaker: follower || preview() ? null : openSpeaker });
+  const overview = createOverview(root!, api);
+  const setTool = (t: InkTool) => ink.setTool(ink.tool() === t ? "pointer" : t);
 
   let typed = "";
   addEventListener("keydown", (e) => {
-    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (follower || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target as HTMLElement | null;
     const inWidget = t && t !== document.body && t.closest?.(".deck-html") && isInteractive(t);
     if (e.key === "Escape") {
       if (overview.open) overview.toggle(false);
+      else if (ink.tool() !== "pointer") ink.setTool("pointer");
       else if (inWidget) t!.blur();
+      else if (presenting) console.debug(`__board_deck__${JSON.stringify({ type: "exit" })}`);
       return;
     }
     if (inWidget) return;
@@ -419,11 +459,17 @@ export async function runDeck(cfg: DeckConfig): Promise<void> {
     }
     typed = "";
     if (k === "ArrowRight" || k === "ArrowDown" || k === " " || k === "PageDown" || k === "Enter" || k === "n") void api.next();
-    else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace" || k === "p") void api.prev();
+    else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp" || k === "Backspace") void api.prev();
     else if (k === "Home") void api.goto(0, 0, true);
     else if (k === "End") void api.goto(slides.length - 1, slides[slides.length - 1].steps - 1);
     else if (k === "o" || k === "g") overview.toggle();
-    else if (k === "b" || k === ".") blank.classList.toggle("on");
+    else if (k === "b" || k === ".") toggleBlank();
+    else if (k === "p") setTool("pen");
+    else if (k === "h") setTool("highlighter");
+    else if (k === "l") setTool("laser");
+    else if (k === "e") setTool("eraser");
+    else if (k === "c") ink.clear();
+    else if (k === "s" && !preview()) openSpeaker();
     else if (k === "f") void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.())?.catch(() => {});
     else return;
     e.preventDefault();
@@ -431,7 +477,7 @@ export async function runDeck(cfg: DeckConfig): Promise<void> {
 
   // A click on an animation or a static slide moves on; slides with their own controls keep their clicks.
   stage.addEventListener("click", (e) => {
-    if (document.documentElement.classList.contains("studio-picking")) return;
+    if (follower || document.documentElement.classList.contains("studio-picking")) return;
     const s = slides[cur.i];
     const t = e.target as HTMLElement;
     if (isInteractive(t)) return;
@@ -444,8 +490,20 @@ export async function runDeck(cfg: DeckConfig): Promise<void> {
     const d = e.data;
     if (!d || !d.__studio) return;
     if (d.type === "pick") document.documentElement.classList.toggle("studio-picking", Boolean(d.on));
+    if (d.type === "speaker.hello") {
+      (e.source as Window | null)?.postMessage({ __studio: 1, type: "deck.slides", slides: api.slides }, "*");
+      (e.source as Window | null)?.postMessage({ __studio: 1, type: "deck.state", ...state() }, "*");
+      return;
+    }
+    if (d.type === "deck.ink") return ink.apply(d.op as InkOp);
     if (d.type !== "deck") return;
-    if (d.cmd === "next") void api.next();
+    if (d.cmd === "tool") {
+      ink.setTool(d.tool as InkTool);
+      if (d.color) ink.setColor(String(d.color));
+    } else if (d.cmd === "color") ink.setColor(String(d.color));
+    else if (d.cmd === "clear") ink.clear();
+    else if (d.cmd === "blank") d.value === undefined ? toggleBlank() : blank.classList.toggle("on", Boolean(d.value));
+    else if (d.cmd === "next") void api.next();
     else if (d.cmd === "prev") void api.prev();
     else if (d.cmd === "goto") void api.goto(d.slide, Number(d.step) || 0, Boolean(d.play));
     else if (d.cmd === "rate") api.setRate(Number(d.value) || 1);
@@ -486,8 +544,11 @@ export async function runDeck(cfg: DeckConfig): Promise<void> {
     },
     layout: () => (slides[cur.i]?.def.type === "animation" ? animator?.layout?.() ?? [] : htmlLayout(slides[cur.i]?.el, size)),
     probe: () => htmlProbe(slides[cur.i]?.el, size),
+    ink: { tool: () => ink.tool(), setTool: (t: InkTool) => ink.setTool(t), hasInk: () => ink.hasInk(), apply: (op: InkOp) => ink.apply(op) },
   };
   if (preview() && window.parent !== window) parent.postMessage({ __studio: 1, type: "deck.ready", slides: api.slides, aspect: cfg.aspect ?? "landscape" }, "*");
+  if (follower && window.parent !== window) parent.postMessage({ __studio: 1, type: "deck.follower" }, "*");
+  if (presenting) console.debug(`__board_deck__${JSON.stringify({ type: "ready", slides: api.slides })}`);
   emit();
 }
 
@@ -531,30 +592,67 @@ function isInteractive(el: HTMLElement | null): boolean {
   );
 }
 
-function createHud(host: HTMLElement, api: { gotoPosition(p: number): Promise<void> }) {
+function createHud(host: HTMLElement, api: { gotoPosition(p: number): Promise<void> }, extra: { ink: ReturnType<typeof createInk>; openSpeaker: (() => void) | null }) {
   const hud = document.createElement("div");
   hud.className = "deck-hud";
-  hud.innerHTML = `<div class="deck-progress"><i></i></div><span class="deck-count"></span>`;
+  hud.innerHTML = `<div class="deck-tools" role="toolbar" aria-label="Presenting tools">
+      <button data-tool="pen" title="Pen (P)">✎</button>
+      <button data-tool="highlighter" title="Highlighter (H)">▮</button>
+      <button data-tool="laser" title="Laser pointer (L)">●</button>
+      <button data-tool="eraser" title="Eraser (E)">⌫</button>
+      <button data-act="clear" title="Clear the ink (C)">✕</button>
+      <span class="deck-colors"></span>
+      ${extra.openSpeaker ? '<button data-act="speaker" title="Speaker view (S)">Speaker view</button>' : ""}
+    </div><div class="deck-progress"><i></i></div><span class="deck-count"></span>`;
   host.append(hud);
   const bar = hud.querySelector<HTMLElement>(".deck-progress i")!;
   const count = hud.querySelector<HTMLElement>(".deck-count")!;
+  const colors = hud.querySelector<HTMLElement>(".deck-colors")!;
+  for (const c of INK_COLORS) {
+    const b = document.createElement("button");
+    b.className = "deck-color";
+    b.style.background = c;
+    b.title = "Ink colour";
+    b.dataset.color = c;
+    colors.append(b);
+  }
+  const markColor = () => colors.querySelectorAll<HTMLElement>("[data-color]").forEach((b) => b.toggleAttribute("aria-pressed", b.dataset.color === extra.ink.color()));
+  markColor();
+  hud.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("button");
+    if (!b) return;
+    e.stopPropagation();
+    if (b.dataset.tool) {
+      const t = b.dataset.tool as InkTool;
+      extra.ink.setTool(extra.ink.tool() === t ? "pointer" : t);
+    } else if (b.dataset.color) {
+      extra.ink.setColor(b.dataset.color);
+      if (extra.ink.tool() === "pointer" || extra.ink.tool() === "laser" || extra.ink.tool() === "eraser") extra.ink.setTool("pen");
+      markColor();
+    } else if (b.dataset.act === "clear") extra.ink.clear();
+    else if (b.dataset.act === "speaker") extra.openSpeaker?.();
+  });
   let hideTimer = 0;
   let total = 1;
   const wake = () => {
     hud.classList.add("awake");
     clearTimeout(hideTimer);
-    hideTimer = window.setTimeout(() => hud.classList.remove("awake"), 2200);
+    hideTimer = window.setTimeout(() => hud.classList.remove("awake"), 2600);
   };
   addEventListener("pointermove", wake);
   hud.querySelector(".deck-progress")!.addEventListener("click", (e) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    void api.gotoPosition(Math.floor(((e as MouseEvent).clientX - r.left) / r.width * total));
+    void api.gotoPosition(Math.floor((((e as MouseEvent).clientX - r.left) / r.width) * total));
   });
   return {
     update(s: DeckState, title: string) {
       total = s.total;
       bar.style.width = `${((s.position + 1) / Math.max(1, s.total)) * 100}%`;
       count.textContent = `${s.index + 1} · ${title}${s.steps > 1 ? ` · ${s.step + 1}/${s.steps}` : ""}`;
+    },
+    setTool(t: InkTool) {
+      hud.querySelectorAll<HTMLElement>("[data-tool]").forEach((b) => b.toggleAttribute("aria-pressed", b.dataset.tool === t));
+      host.dataset.tool = t;
     },
   };
 }
