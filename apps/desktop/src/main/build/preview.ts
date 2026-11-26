@@ -1,9 +1,11 @@
 import fs from "node:fs";
 import { join, normalize, sep } from "node:path";
 import { BrowserWindow, protocol } from "electron";
-import type { BuildResult } from "@studio/shared";
+import { animationKind, type BuildResult, type ProjectManifest } from "@studio/shared";
 import { projects } from "../projects";
 import { buildSingleFile } from "./bundle";
+import { buildDeck, type DeckMedia } from "./deck";
+import { video } from "../video/renderer";
 import { spread } from "../inspect/sheet";
 
 export const PREVIEW_SCHEME = "studio-preview";
@@ -62,11 +64,19 @@ export function previewUrl(projectId: string, query = ""): string {
   return `${PREVIEW_SCHEME}://${projectId}/preview.html?v=${Date.now()}${query ? `&${query}` : ""}`;
 }
 
-/** Build the preview (with bridge) and keep it on disk for the protocol handler. */
+/** What the single-file builder makes for this project: slides with manim-web get a web-animation timeline. */
+function singleFileKind(m: ProjectManifest): ProjectManifest["kind"] {
+  return m.kind === "slides" ? (animationKind(m) === "web" ? "web" : "video") : m.kind;
+}
+
+/**
+ * Build the preview (with bridge) and keep it on disk for the protocol handler.
+ * Slides: this is the animation timeline of the manim-web slides; the deck is buildDeckPreview.
+ */
 export async function buildPreview(projectId: string): Promise<BuildResult> {
   const dir = projects.dir(projectId);
   const m = projects.manifest(projectId);
-  const res = await buildSingleFile(dir, m.kind, m.title, true, m.aspect);
+  const res = await buildSingleFile(dir, singleFileKind(m), m.title, true, m.aspect);
   if (!res.ok || !res.html) return { ok: false, errors: res.errors };
   fs.mkdirSync(join(dir, "build"), { recursive: true });
   fs.writeFileSync(join(dir, "build", "preview.html"), res.html);
@@ -77,9 +87,54 @@ export async function buildPreview(projectId: string): Promise<BuildResult> {
 export async function buildExport(projectId: string): Promise<{ html: string; sizeBytes: number; libraries: string[] }> {
   const dir = projects.dir(projectId);
   const m = projects.manifest(projectId);
+  if (m.kind === "slides") {
+    const d = await buildDeckExport(projectId, { mode: "inline" });
+    return { html: d.html, sizeBytes: d.sizeBytes, libraries: d.libraries };
+  }
   const res = await buildSingleFile(dir, m.kind, m.title, false, m.aspect);
   if (!res.ok || !res.html) throw new Error(res.errors.join("\n") || "Build failed");
   return { html: res.html, sizeBytes: res.sizeBytes ?? 0, libraries: res.libraries };
+}
+
+// ---------------------------------------------------------------- slides
+
+export function deckUrl(projectId: string, query = ""): string {
+  return `${PREVIEW_SCHEME}://${projectId}/deck.html?v=${Date.now()}${query ? `&${query}` : ""}`;
+}
+
+/**
+ * The deck as the app shows it. Manim slides: renders drafts that are missing or out of date
+ * first (their failures come back as warnings; those slides show a placeholder).
+ */
+export async function buildDeckPreview(projectId: string, progress: (m: string) => void = () => {}): Promise<BuildResult & { warnings: string[] }> {
+  const dir = projects.dir(projectId);
+  const m = projects.manifest(projectId);
+  const warnings: string[] = [];
+  if (animationKind(m) === "video") {
+    for (const f of await video.renderStale(projectId, progress)) warnings.push(`Slide “${f.title}” failed to render:\n${f.log}`);
+  }
+  const res = await buildDeck(projectId, dir, projects.manifest(projectId), { preview: true, media: { mode: "preview" }, quality: "draft" });
+  if (!res.ok || !res.html) return { ok: false, errors: res.errors, warnings };
+  fs.mkdirSync(join(dir, "build"), { recursive: true });
+  fs.writeFileSync(join(dir, "build", "deck.html"), res.html);
+  return { ok: true, previewUrl: deckUrl(projectId), sizeBytes: res.sizeBytes, libraries: res.libraries, errors: [], warnings: [...warnings, ...res.warnings] };
+}
+
+/** The shareable deck: Manim slides are rendered in high quality first. */
+export async function buildDeckExport(projectId: string, media: DeckMedia, progress: (m: string) => void = () => {}): Promise<{ html: string; sizeBytes: number; libraries: string[]; media: Record<string, string> }> {
+  const dir = projects.dir(projectId);
+  const m = projects.manifest(projectId);
+  if (animationKind(m) === "video") {
+    const clips = m.scenes.filter((s) => s.file.endsWith(".py"));
+    for (const [i, s] of clips.entries()) {
+      progress(`Rendering “${s.title}” in high quality (${i + 1} of ${clips.length})…`);
+      const r = await video.renderFinal(projectId, s.id);
+      if (!r.ok) throw new Error(`Slide “${s.title}” failed to render:\n${r.log}`);
+    }
+  }
+  const res = await buildDeck(projectId, dir, m, { preview: false, media, quality: "final" });
+  if (!res.ok || !res.html) throw new Error(res.errors.join("\n") || "Build failed");
+  return { html: res.html, sizeBytes: res.sizeBytes ?? 0, libraries: res.libraries, media: res.media ?? {} };
 }
 
 export interface ConsoleLine {
@@ -451,6 +506,156 @@ export function labSession(projectId: string, opts: { viewport?: ViewportName; a
       }
       await new Promise((r) => setTimeout(r, 300));
       const probe = (await win.webContents.executeJavaScript(LAB_PROBE).catch(() => ({ findings: [], controls: [] }))) as { findings: string[]; controls: string[] };
+      const png = (await win.webContents.capturePage()).toPNG();
+      return { png, console: lines.filter((l, i) => lines.findIndex((o) => o.text === l.text) === i), findings: probe.findings, controls: probe.controls, results };
+    } finally {
+      sink = null;
+      void win.loadURL("about:blank").catch(() => {});
+    }
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+// ---------------------------------------------------------------- slides: steps, pictures, interaction
+
+export interface DeckStepFrame {
+  slide: string;
+  title: string;
+  type: string;
+  step: number;
+  steps: number;
+  png: Buffer;
+  layout: WebStepFrame["layout"];
+  findings: string[];
+}
+
+interface DeckSlideInfo {
+  id: string;
+  title: string;
+  type: string;
+  steps: number;
+  notes: string;
+}
+
+function deckViewport(projectId: string): { width: number; height: number } {
+  return projects.manifest(projectId).aspect === "vertical" ? { width: 405, height: 720 } : { width: 1280, height: 720 };
+}
+
+async function loadDeck(win: BrowserWindow, projectId: string, query: string): Promise<DeckSlideInfo[]> {
+  await win.loadURL(deckUrl(projectId, query)).catch(async (e: Error) => {
+    if (!/ERR_(FAILED|ABORTED)/.test(e.message)) throw e;
+    await new Promise((r) => setTimeout(r, 300));
+    await win.loadURL(deckUrl(projectId, query));
+  });
+  for (let i = 0; i < 100; i++) {
+    const slides = (await win.webContents.executeJavaScript("window.__studioDeck?.ready ? window.__studioDeck.slides : null").catch(() => null)) as DeckSlideInfo[] | null;
+    if (slides) return slides;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return [];
+}
+
+/**
+ * Load the deck in the hidden window and, for each step of each slide (or of one slide), show
+ * the end of that step, take a picture and check the layout.
+ */
+export function deckSteps(projectId: string, opts: { scene?: string; max?: number; pictures?: boolean } = {}): Promise<{ frames: DeckStepFrame[]; slides: DeckSlideInfo[]; console: ConsoleLine[] }> {
+  const run = queue.then(async () => {
+    const win = inspectorWindow();
+    const vp = deckViewport(projectId);
+    win.setContentSize(vp.width, vp.height);
+    const lines: ConsoleLine[] = [];
+    sink = lines;
+    try {
+      const slides = await loadDeck(win, projectId, "still=1");
+      const all = slides.filter((s) => !opts.scene || s.id === opts.scene).flatMap((s) => Array.from({ length: s.steps }, (_, k) => ({ s, k })));
+      const frames: DeckStepFrame[] = [];
+      for (const { s, k } of spread(all, opts.max ?? 16)) {
+        await win.webContents.executeJavaScript(`window.__studioDeck.goto(${JSON.stringify(s.id)}, ${k})`).catch(() => {});
+        // HTML steps fade in; let them finish.
+        await new Promise((r) => setTimeout(r, s.type === "html" ? 420 : 120));
+        const layout = (await win.webContents.executeJavaScript("window.__studioDeck.layout()").catch(() => [])) as DeckStepFrame["layout"];
+        const probe = s.type === "html" ? ((await win.webContents.executeJavaScript("window.__studioDeck.probe()").catch(() => ({ findings: [] }))) as { findings: string[] }) : { findings: [] };
+        const png = opts.pictures === false ? Buffer.alloc(0) : (await win.webContents.capturePage()).toPNG();
+        frames.push({ slide: s.id, title: s.title, type: s.type, step: k, steps: s.steps, png, layout, findings: probe.findings });
+      }
+      return { frames, slides, console: lines.filter((l, i) => lines.findIndex((o) => o.text === l.text) === i) };
+    } finally {
+      sink = null;
+      void win.loadURL("about:blank").catch(() => {});
+    }
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+/** Run a script in a freshly loaded deck (selftests): `script` is an async function expression. */
+export function deckScript<T>(projectId: string, script: string, query = ""): Promise<T> {
+  const run = queue.then(async () => {
+    const win = inspectorWindow();
+    const vp = deckViewport(projectId);
+    win.setContentSize(vp.width, vp.height);
+    try {
+      await loadDeck(win, projectId, query);
+      return (await win.webContents.executeJavaScript(`(${script})()`)) as T;
+    } finally {
+      void win.loadURL("about:blank").catch(() => {});
+    }
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+/** A picture of every slide (the end of its last step) for the storyboard, and the project thumbnail. */
+export function deckThumbnails(projectId: string): Promise<number> {
+  const run = queue.then(async () => {
+    const win = inspectorWindow();
+    const vp = deckViewport(projectId);
+    win.setContentSize(vp.width, vp.height);
+    try {
+      const slides = await loadDeck(win, projectId, "still=1");
+      const out = join(projects.dir(projectId), "build", "thumbs");
+      fs.mkdirSync(out, { recursive: true });
+      for (const [i, s] of slides.entries()) {
+        await win.webContents.executeJavaScript(`window.__studioDeck.goto(${JSON.stringify(s.id)}, ${s.steps - 1})`).catch(() => {});
+        await new Promise((r) => setTimeout(r, s.type === "html" ? 420 : 150));
+        const img = await win.webContents.capturePage();
+        if (img.isEmpty()) continue;
+        const small = img.resize({ width: vp.width > vp.height ? 480 : 270 }).toPNG();
+        fs.writeFileSync(join(out, `${s.id}.png`), small);
+        if (i === 0) fs.writeFileSync(join(projects.dir(projectId), "build", "thumb.png"), small);
+      }
+      return slides.length;
+    } finally {
+      void win.loadURL("about:blank").catch(() => {});
+    }
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+/** Open the deck on one slide in the hidden window, use its controls like the teacher would, then check it. */
+export function deckSession(projectId: string, opts: { scene: string; step?: number; actions?: LabAction[] }): Promise<LabSession> {
+  const run = queue.then(async () => {
+    const win = inspectorWindow();
+    const vp = deckViewport(projectId);
+    win.setContentSize(vp.width, vp.height);
+    const lines: ConsoleLine[] = [];
+    sink = lines;
+    try {
+      await loadDeck(win, projectId, `slide=${encodeURIComponent(opts.scene)}&step=${opts.step ?? 0}`);
+      await new Promise((r) => setTimeout(r, 600));
+      // Controls are found by name across the page; only this slide's should match. (This window is throwaway.)
+      await win.webContents.executeJavaScript(`document.querySelectorAll(".deck-html:not([data-active])").forEach((e) => e.remove())`).catch(() => {});
+      const results: string[] = [];
+      for (const a of opts.actions ?? []) {
+        const r = await win.webContents.executeJavaScript(`${LAB_ACT}(${JSON.stringify(a)})`).catch((e: Error) => `failed: ${e.message}`);
+        results.push(String(r));
+        await new Promise((res) => setTimeout(res, 250));
+      }
+      await new Promise((r) => setTimeout(r, 300));
+      const probe = (await win.webContents.executeJavaScript("window.__studioDeck.probe()").catch(() => ({ findings: [], controls: [] }))) as { findings: string[]; controls: string[] };
       const png = (await win.webContents.capturePage()).toPNG();
       return { png, console: lines.filter((l, i) => lines.findIndex((o) => o.text === l.text) === i), findings: probe.findings, controls: probe.controls, results };
     } finally {

@@ -245,6 +245,13 @@ function introInstructions(intro: AgentRequest["intro"], kind: ProjectKind): str
   }
   if (intro.script && kind !== "lab") {
     const wait = kind === "video" ? 'self.wait_until("name")' : 'await scene.waitUntil("name")';
+    if (kind === "slides") {
+      parts.push(
+        "[Start from a script: the teacher's message below is what they will say. Split it into slides at natural breaks. Put what they will say for " +
+          "each slide in notes/<slide>.md (keeping their wording), and build each slide so it shows the ideas as they are spoken, step by step.]",
+      );
+      return parts.join("\n");
+    }
     parts.push(
       "[Start from a script: the teacher's message below is the narration. Split it into scenes at natural breaks. For each scene, save its words in " +
         "narration/<scene>.md, keeping the teacher's wording (fix only obvious typos), and put {{mark:name}} cues before the words where something " +

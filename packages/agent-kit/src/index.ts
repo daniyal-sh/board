@@ -1,12 +1,14 @@
-import type { Aspect, ProjectKind, ProjectLength } from "@studio/shared";
+import type { Aspect, ProjectKind, ProjectLength, SlidesEngine } from "@studio/shared";
 
 export interface InstructionContext {
   kind: ProjectKind;
   title: string;
   length: ProjectLength;
   audience?: string;
-  /** Videos and web animations. */
+  /** Videos, web animations and slides. */
   aspect?: Aspect;
+  /** Slides: what draws the animated slides. */
+  engine?: SlidesEngine;
   /** Absolute path to the vendored libraries (read-only reference for type declarations). */
   libsDir: string;
 }
@@ -17,10 +19,17 @@ const LENGTH: Record<ProjectLength, string> = {
   lesson: "Full lesson: 10–40 minutes split into chapters (video) or a multi-step Lab with checks.",
 };
 
+const SLIDE_LENGTH: Record<ProjectLength, string> = {
+  short: "Short: about 3–6 slides for a five-minute explanation.",
+  explainer: "Explainer: about 8–15 slides for a 10–20 minute talk.",
+  lesson: "Full lesson: 15–30 slides for a whole class period, with sections.",
+};
+
 const KIND_GUIDE: Record<ProjectKind, string> = {
   video: ".studio/guide/video.md",
   web: ".studio/guide/web.md",
   lab: ".studio/guide/lab.md",
+  slides: ".studio/guide/slides.md",
 };
 
 /** Contents of AGENTS.md written into every project (CLAUDE.md imports it). */
@@ -29,11 +38,15 @@ export function projectInstructions(ctx: InstructionContext): string {
     video: "a **video** rendered with Manim Community Edition (Python).",
     web: "a **web animation** built with manim-web (TypeScript, plays in the browser).",
     lab: "a **Lab**: an interactive web page students explore, delivered as one self-contained HTML file.",
+    slides:
+      ctx.engine === "video"
+        ? "a **slide deck** the teacher presents step by step. Animated slides are rendered with Manim Community Edition (Python); other slides are HTML."
+        : "a **slide deck** the teacher presents step by step. Animated slides use manim-web (TypeScript, plays in the browser); other slides are HTML.",
   };
   return `# ${ctx.title}
 
 You are helping a teacher create ${kindLine[ctx.kind]}
-${ctx.audience ? `Audience: ${ctx.audience}.\n` : ""}Length: ${LENGTH[ctx.length]}
+${ctx.audience ? `Audience: ${ctx.audience}.\n` : ""}Length: ${(ctx.kind === "slides" ? SLIDE_LENGTH : LENGTH)[ctx.length]}
 ${frameLine(ctx)}
 **Before you start, read \`${KIND_GUIDE[ctx.kind]}\`.** Library guides are in \`.studio/guide/libs/\`.
 Vendored library sources and type declarations (read-only) are in \`${ctx.libsDir.replaceAll("\\", "/")}\`.
@@ -59,13 +72,18 @@ The teacher is an expert in their subject, not a programmer. They see a live pre
    - \`get_selection\` for the part the teacher selected; \`get_console\` for runtime errors.
 3. You can also run commands, read web pages and download files (for example, a PDF the teacher refers to) into the project folder. The teacher chooses how much you may do: some actions show them an approval card first. If something is declined, carry on without it or explain briefly what you need.
 4. When the teacher has selected something, their message includes its part name. Change that part, and keep everything else as it was unless asked.
-${ctx.kind === "lab" ? "5. A Lab is one page, in whatever form fits the idea (see the guide). Give meaningful parts a data-part name." : "5. Keep the storyboard tidy: one scene per file, numbered in play order (01_, 02_, ...)."}
+${ctx.kind === "lab" ? "5. A Lab is one page, in whatever form fits the idea (see the guide). Give meaningful parts a data-part name." : ctx.kind === "slides" ? "5. One slide per file in scenes/, numbered in deck order (01_, 02_, ...). The files are the deck: add, rename or delete files to change it." : "5. Keep the storyboard tidy: one scene per file, numbered in play order (01_, 02_, ...)."}
 6. Your work is saved as a version after each turn; the teacher can undo. Don't create backup copies of files.
 `;
 }
 
 function frameLine(ctx: InstructionContext): string {
   if (ctx.kind === "lab") return "";
+  if (ctx.kind === "slides") {
+    const px = ctx.aspect === "vertical" ? "1080×1920 (vertical 9:16)" : "1920×1080 (16:9)";
+    const units = ctx.engine === "video" || ctx.aspect === "vertical" ? (ctx.aspect === "vertical" ? " Animated slides: about 4.5 × 8 Manim units." : " Animated slides: Manim's usual 14.2 × 8 units.") : " Animated slides: about 14.2 × 8 manim-web units.";
+    return `Slide canvas: fixed ${px} pixels, scaled to whatever screen it is shown on.${units}\n`;
+  }
   if (ctx.aspect === "vertical") {
     return ctx.kind === "video"
       ? "Frame: **vertical 9:16** (Shorts / Reels / TikTok), rendered at 1080×1920. Manim keeps the frame 8 units tall, so it is only 4.5 units wide (x from -2.25 to 2.25): stack things vertically, use large text, keep everything inside.\n"
@@ -81,8 +99,8 @@ export function claudeMd(): string {
 /** Appended to the agent's system prompt (both Claude and Codex). */
 export function systemAppend(kind: ProjectKind): string {
   return [
-    "You are running inside Board (by Apollo), a desktop app that helps teachers make Manim videos, web animations and interactive Labs.",
-    `This project is a ${kind === "lab" ? "Lab" : kind === "web" ? "web animation" : "video"}. Follow AGENTS.md in the project folder.`,
+    "You are running inside Board (by Apollo), a desktop app that helps teachers make Manim videos, web animations, interactive Labs and slide decks.",
+    `This project is a ${kind === "lab" ? "Lab" : kind === "web" ? "web animation" : kind === "slides" ? "slide deck" : "video"}. Follow AGENTS.md in the project folder.`,
     "The teacher sees a preview, not your code. Keep replies short and visual. Always verify your work with the Board tools before finishing.",
     "You may use the shell and the web when it helps (e.g. downloading a document the teacher mentions into the project); some actions need the teacher's approval.",
     "To ask the teacher something, use the ask_teacher tool (clickable options), not plain-text questions or other question tools.",
@@ -91,7 +109,17 @@ export function systemAppend(kind: ProjectKind): string {
 }
 
 /** Starter files for a new project, keyed by path relative to the project folder. */
-export function templates(kind: ProjectKind, title: string): Record<string, string> {
+export function templates(kind: ProjectKind, title: string, _engine?: SlidesEngine): Record<string, string> {
+  if (kind === "slides") {
+    return {
+      "scenes/01_title.html": `<!-- class: title -->
+<h1 data-part="title">${escapeHtml(title)}</h1>
+<h3 data-part="subtitle">Getting the slides ready…</h3>
+`,
+      "notes/.keep": "",
+      "narration/.keep": "",
+    };
+  }
   if (kind === "lab") {
     return {
       "lab/index.html": `<!doctype html>

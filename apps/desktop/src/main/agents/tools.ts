@@ -3,8 +3,8 @@ import { randomBytes } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import type { Selection } from "@studio/shared";
-import { buildPreview, consoleFor, inspectPreview, labSession, webSteps, type LabAction, type ViewportName } from "../build/preview";
+import { animationKind, type ProjectManifest, type Selection } from "@studio/shared";
+import { buildDeckPreview, buildPreview, consoleFor, deckSession, deckSteps, inspectPreview, labSession, webSteps, type DeckStepFrame, type LabAction, type ViewportName } from "../build/preview";
 import { analyseLayout, formatFindings, snapshotsFromTimeline } from "../inspect/layout";
 import { contactSheet, spread } from "../inspect/sheet";
 import { mainWindow } from "../window";
@@ -56,6 +56,7 @@ function createServer(projectId: string): McpServer {
     async ({ scene }) => {
       const m = projects.manifest(projectId);
       const frameHeightPx = m.aspect === "vertical" ? 1920 : 1080;
+      if (m.kind === "slides") return renderSlides(projectId, m, scene, () => ctx()?.onPreviewUpdated());
       if (m.kind === "video") {
         const r = await video.renderPreview(projectId, scene);
         ctx()?.onPreviewUpdated();
@@ -108,6 +109,15 @@ function createServer(projectId: string): McpServer {
     async ({ viewports, times, scene }) => {
       const m = projects.manifest(projectId);
       const content: Content[] = [];
+      if (m.kind === "slides") {
+        const r = await deckSteps(projectId, { scene, max: 6 });
+        if (!r.frames.length) return text(scene ? `No slide “${scene}”. Slides: ${r.slides.map((x) => x.id).join(", ")}` : "The deck didn't load. Call render_preview first.");
+        for (const f of r.frames) {
+          content.push({ type: "text", text: `${f.slide} · step ${f.step + 1} of ${f.steps}` });
+          content.push(image(f.png));
+        }
+        return { content };
+      }
       if (m.kind === "video") {
         const frames = await video.frames(projectId, scene, times ?? [1, 4, 8]);
         if (!frames.length) return text("No rendered video for that scene yet. Call render_preview first.");
@@ -166,6 +176,17 @@ function createServer(projectId: string): McpServer {
       const m = projects.manifest(projectId);
       const vertical = m.aspect === "vertical";
       const frameHeightPx = vertical ? 1920 : 1080;
+      if (m.kind === "slides") {
+        const r = await deckSteps(projectId, { scene, max: 16 });
+        if (!r.frames.length) return text(`No pictures: the deck didn't load.\n${formatConsole(r.console)}`);
+        const sheet = await contactSheet(
+          r.frames.map((f) => ({ png: f.png, label: `${f.slide} · ${f.type === "html" ? "HTML" : "animated"} · step ${f.step + 1}/${f.steps}` })),
+          { aspect: vertical ? 9 / 16 : 16 / 9 },
+        );
+        const total = r.slides.reduce((n, x) => n + x.steps, 0);
+        const shown = r.frames.length < total ? ` (showing ${r.frames.length} of ${total} steps; pass scene for one slide)` : "";
+        return { content: [image(sheet), { type: "text", text: [`${r.slides.length} slides, ${total} steps${shown}.`, formatFindings(deckFindings(m, r.frames), "end of each step"), formatConsole(r.console)].join("\n") }] };
+      }
       if (m.kind === "lab") {
         const [d, p] = [await labSession(projectId, { viewport: "desktop" }), await labSession(projectId, { viewport: "phone" })];
         const sheet = await contactSheet(
@@ -222,7 +243,7 @@ function createServer(projectId: string): McpServer {
     {
       title: "Use the Lab",
       description:
-        "Try the Lab like a student: open it fresh in a hidden window, run actions in order, then return a screenshot, the result of each action, console errors, layout checks and the list of controls on the page. Call it with no actions to list the controls. Targets are a data-part name, a CSS selector, or the visible label/text of a control. The teacher's preview is not affected.",
+        "Try the Lab (or an interactive slide) like a student: open it fresh in a hidden window, run actions in order, then return a screenshot, the result of each action, console errors, layout checks and the list of controls on the page. Call it with no actions to list the controls. Targets are a data-part name, a CSS selector, or the visible label/text of a control. The teacher's preview is not affected.",
       inputSchema: {
         actions: z
           .array(
@@ -242,18 +263,23 @@ function createServer(projectId: string): McpServer {
           .max(20)
           .optional(),
         viewport: z.enum(["desktop", "phone"]).optional(),
+        scene: z.string().optional().describe("Slides: the HTML slide to use (file name without .html)."),
+        step: z.number().int().min(0).optional().describe("Slides: which step of the slide to start on (default 0)."),
       },
     },
-    async ({ actions, viewport }) => {
-      if (projects.manifest(projectId).kind !== "lab") return text("interact is for Labs. For animations use get_keyframes or get_frames.");
+    async ({ actions, viewport, scene, step }) => {
+      const kind = projects.manifest(projectId).kind;
+      if (kind !== "lab" && kind !== "slides") return text("interact is for Labs and interactive slides. For animations use get_keyframes or get_frames.");
+      if (kind === "slides" && !scene) return text("Pass scene: the id of the HTML slide to use (file name without .html).");
       const steps = (actions ?? []).map((a): LabAction | null =>
         a.click !== undefined ? { click: a.click } : a.set !== undefined ? { set: a.set, value: a.value ?? "" } : a.type !== undefined ? { type: a.type, text: a.text ?? "" } : a.press !== undefined ? { press: a.press, target: a.target } : a.wait !== undefined ? { wait: a.wait } : null,
       );
-      const r = await labSession(projectId, { viewport: viewport ?? "desktop", actions: steps.filter((a): a is LabAction => a !== null) });
+      const list = steps.filter((a): a is LabAction => a !== null);
+      const r = kind === "slides" ? await deckSession(projectId, { scene: scene!, step, actions: list }) : await labSession(projectId, { viewport: viewport ?? "desktop", actions: list });
       const lines = [
         actions?.length ? `Actions:\n${(actions ?? []).map((a, i) => `${i + 1}. ${JSON.stringify(a)} → ${r.results[i] ?? "?"}`).join("\n")}` : "",
         `Controls on the page:\n${r.controls.length ? r.controls.map((c) => `- ${c}`).join("\n") : "- none found"}`,
-        formatFindings(r.findings, `${viewport ?? "desktop"} after the actions`),
+        formatFindings(r.findings, kind === "slides" ? `slide ${scene} after the actions` : `${viewport ?? "desktop"} after the actions`),
         formatConsole(r.console),
       ].filter(Boolean);
       return { content: [image(r.png), { type: "text", text: lines.join("\n\n") }] };
@@ -306,6 +332,43 @@ function createServer(projectId: string): McpServer {
   );
 
   return server;
+}
+
+/** Slides: render what changed (Manim engine), build the deck, then check every step of it. */
+async function renderSlides(projectId: string, m: ProjectManifest, scene: string | undefined, updated: () => void): Promise<{ content: Content[] }> {
+  const target = scene ? m.scenes.find((s) => s.id === scene) : undefined;
+  if (scene && !target) return text(`No slide “${scene}”. Slides: ${m.scenes.map((s) => s.id).join(", ") || "none yet"}.`);
+  const frameHeightPx = m.aspect === "vertical" ? 1920 : 1080;
+  const out: string[] = [];
+  if (animationKind(m) === "video" && (!target || target.slideType === "animation") && m.scenes.some((s) => s.slideType === "animation")) {
+    const r = await video.renderPreview(projectId, target?.id);
+    if (!r.ok) out.push(`Render failed for ${r.scene}:\n${r.log}`);
+    else {
+      const tl = video.timeline(projectId, r.scene);
+      const stops = tl?.plays.filter((p) => p.kind === "stop").length ?? 0;
+      out.push(`Rendered ${r.scene} (${r.durationSec?.toFixed(1)} s) in ${r.seconds.toFixed(1)} s, ${stops} next_slide() stop${stops === 1 ? "" : "s"}.${r.log ? `\n${r.log}` : ""}`);
+      if (tl) out.push(formatFindings(analyseLayout(snapshotsFromTimeline(tl), { frameHeightPx }), `${r.scene}, end of each animation`));
+    }
+  }
+  const built = await buildDeckPreview(projectId);
+  if (!built.ok) return text([...out, `Deck build failed:\n${built.errors.join("\n")}`].join("\n\n"));
+  updated();
+  out.push(`Deck built: ${Math.round((built.sizeBytes ?? 0) / 1024)} KB, libraries: ${built.libraries?.join(", ") || "none"}.`);
+  if (built.warnings.length) out.push(built.warnings.join("\n"));
+  const r = await deckSteps(projectId, { scene: target?.id, pictures: false, max: 60 });
+  out.push(r.slides.map((x, i) => `${i + 1}. ${x.id} (${x.type === "html" ? "HTML" : x.type === "missing" ? "not rendered" : "animated"}): ${x.steps} step${x.steps === 1 ? "" : "s"}${x.notes ? "" : ", no speaker notes"}`).join("\n"));
+  out.push(formatFindings(deckFindings(m, r.frames), target ? `${target.id}, end of each step` : "end of each step"));
+  out.push(formatConsole(r.console));
+  return text(out.filter(Boolean).join("\n\n"));
+}
+
+/** Layout problems on deck steps: measured objects on manim-web slides, page checks on HTML slides. */
+function deckFindings(m: ProjectManifest, frames: DeckStepFrame[]): string[] {
+  const frameHeightPx = m.aspect === "vertical" ? 1920 : 1080;
+  const web = frames.filter((f) => f.type === "animation" && f.layout.length);
+  const found = analyseLayout(web.map((f) => ({ t: f.step, scene: f.slide, items: f.layout })), { frameHeightPx, unit: "step" });
+  for (const f of frames) for (const x of f.findings) found.push(`${f.slide}, step ${f.step + 1}: ${x}`);
+  return [...new Set(found)];
 }
 
 let httpServer: http.Server | undefined;

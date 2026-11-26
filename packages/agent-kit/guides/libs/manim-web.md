@@ -38,6 +38,6 @@ Differences from Python Manim to remember:
 - Methods are camelCase: `moveTo`, `nextTo`, `toEdge`, `toCorner`, `setColor`, `addUpdater`, `getValue`, `setValue`.
 - Constructors take one options object: `new Circle({ radius: 1, color: RED })`, `new Line({ start, end })`, `new MathTex({ latex: "x^2" })`, `new Text({ text: "Hi" })`.
 - Points are `[x, y, z]` tuples.
-- `MathTex` uses KaTeX (no LaTeX install), so stick to standard math.
+- `MathTex` and `Tex` are typeset by MathJax inside the page (no LaTeX install, works offline); stick to standard LaTeX math.
 - Interaction: `Slider`, `Draggable`, `Clickable`, `Hoverable` exist; a lab-kit `<lab-slider>` driving a `ValueTracker` is often simpler.
 - Give mobjects meaningful variable names: they become the part names teachers click in the preview.

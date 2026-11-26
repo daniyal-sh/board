@@ -1,0 +1,116 @@
+/* Board slide deck: a fixed canvas (1920×1080 or 1080×1920) scaled to the screen, and the house
+   style for HTML slides. Override any variable in scenes/_theme.css. */
+:root {
+  --deck-bg: #0e0e12;
+  --deck-surface: #1a1a21;
+  --deck-ink: #f4f3ef;
+  --deck-muted: #a3a1ab;
+  --deck-line: #2e2e37;
+  --deck-accent: #ffe14d;
+  --deck-blue: #58c4dd;
+  --deck-yellow: #ffe14d;
+  --deck-red: #fc6255;
+  --deck-green: #83c167;
+  --deck-purple: #9a72ac;
+  --deck-sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif;
+  --deck-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --deck-mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  --deck-pad: 96px;
+  color-scheme: dark;
+}
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+.deck { position: fixed; inset: 0; background: #000; font-family: var(--deck-sans); }
+.deck-stage {
+  position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%;
+  background: var(--deck-bg); color: var(--deck-ink); overflow: hidden;
+}
+
+/* One layer per HTML slide, one for the animation. Only the active one shows. */
+.deck-layer {
+  position: absolute; inset: 0; opacity: 0; visibility: hidden;
+  transition: opacity 0.28s ease, visibility 0s linear 0.28s;
+}
+.deck-layer[data-active] { opacity: 1; visibility: visible; transition: opacity 0.28s ease; }
+.deck-still .deck-layer, .deck-still .deck-html [data-step] { transition: none !important; }
+.deck-anim-host { position: absolute; inset: 0; }
+.deck-anim [data-player-bar] { display: none !important; }
+.deck-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--deck-bg); display: none; }
+.deck-video.on { display: block; }
+.deck-caption {
+  position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); max-width: 80%; text-align: center; z-index: 3;
+  color: #fff; font-size: 40px; line-height: 1.35; text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85); pointer-events: none;
+}
+.deck-caption:empty { display: none; }
+
+/* ---------------------------------------------------------------- HTML slides */
+.deck-html {
+  box-sizing: border-box; padding: var(--deck-pad); display: flex; flex-direction: column; justify-content: center; gap: 28px;
+  font-size: 40px; line-height: 1.4;
+}
+.deck-html *, .deck-html *::before, .deck-html *::after { box-sizing: border-box; }
+.deck-html h1, .deck-html h2, .deck-html h3 { margin: 0; font-weight: 650; letter-spacing: -0.015em; line-height: 1.1; }
+.deck-html h1 { font-size: 96px; }
+.deck-html h2 { font-size: 68px; }
+.deck-html h3 { font-size: 48px; color: var(--deck-muted); font-weight: 500; }
+.deck-html p { margin: 0; max-width: 34em; }
+.deck-html ul, .deck-html ol { margin: 0; padding-left: 1.2em; display: grid; gap: 18px; }
+.deck-html li::marker { color: var(--deck-accent); }
+.deck-html strong, .deck-html b { color: var(--deck-accent); font-weight: 650; }
+.deck-html code { font-family: var(--deck-mono); font-size: 0.9em; background: var(--deck-surface); padding: 0.05em 0.3em; border-radius: 8px; }
+.deck-html pre { margin: 0; font-family: var(--deck-mono); font-size: 30px; background: var(--deck-surface); padding: 28px 32px; border-radius: 18px; overflow: hidden; }
+.deck-html img, .deck-html svg, .deck-html canvas, .deck-html video { max-width: 100%; }
+.deck-html table { border-collapse: collapse; font-size: 34px; }
+.deck-html th, .deck-html td { padding: 12px 22px; border-bottom: 2px solid var(--deck-line); text-align: left; }
+.deck-html button, .deck-html input, .deck-html select { font: inherit; font-size: 32px; }
+
+/* Layout helpers */
+.deck-html.title, .deck-html .title { align-items: center; text-align: center; justify-content: center; }
+.deck-html.top { justify-content: flex-start; }
+.deck-html .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+.deck-html .columns.wide-left { grid-template-columns: 3fr 2fr; }
+.deck-html .columns.wide-right { grid-template-columns: 2fr 3fr; }
+.deck-html .stack { display: flex; flex-direction: column; gap: 28px; }
+.deck-html .row { display: flex; gap: 40px; align-items: center; }
+.deck-html .center { text-align: center; align-self: center; }
+.deck-html .fill { flex: 1; min-height: 0; }
+.deck-html .box { background: var(--deck-surface); border-radius: 24px; padding: 40px 48px; }
+.deck-html .big { font-size: 64px; }
+.deck-html .small { font-size: 30px; }
+.deck-html .muted { color: var(--deck-muted); }
+.deck-html .blue { color: var(--deck-blue); } .deck-html .yellow { color: var(--deck-yellow); }
+.deck-html .red { color: var(--deck-red); } .deck-html .green { color: var(--deck-green); } .deck-html .purple { color: var(--deck-purple); }
+
+/* Steps: [data-step="n"] appears at step n; [data-step-hide="n"] goes away at step n. */
+.deck-html [data-step] { transition: opacity 0.35s ease, transform 0.35s ease, filter 0.35s ease; }
+.deck-html .deck-pending { opacity: 0; visibility: hidden; }
+.deck-html [data-step-effect="up"].deck-pending { transform: translateY(40px); }
+.deck-html [data-step-effect="left"].deck-pending { transform: translateX(-60px); }
+.deck-html [data-step-effect="zoom"].deck-pending { transform: scale(0.85); }
+.deck-html [data-step-effect="dim"].deck-pending { opacity: 0.25; visibility: visible; filter: grayscale(1); }
+@media (prefers-reduced-motion: reduce) { .deck-html [data-step], .deck-layer { transition: none !important; transform: none !important; } }
+
+.deck-missing { align-items: center; justify-content: center; text-align: center; }
+.deck-missing-box { border: 3px dashed var(--deck-line); border-radius: 28px; padding: 64px 96px; color: var(--deck-muted); }
+.deck-missing-box h2 { color: var(--deck-ink); margin-bottom: 16px; }
+
+/* ---------------------------------------------------------------- presenting chrome */
+.deck-hud { position: fixed; inset: auto 0 0 0; z-index: 20; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.deck-hud.awake { opacity: 1; pointer-events: auto; }
+.deck-progress { height: 6px; background: rgba(255, 255, 255, 0.08); cursor: pointer; }
+.deck-progress i { display: block; height: 100%; background: var(--deck-accent); transition: width 0.25s; }
+.deck-count { position: absolute; right: 14px; bottom: 14px; font: 600 13px/1.6 var(--deck-sans); color: rgba(255, 255, 255, 0.75); background: rgba(0, 0, 0, 0.55); padding: 2px 10px; border-radius: 999px; }
+.studio-preview .deck-hud { display: none; }
+.deck-blank { position: fixed; inset: 0; background: #000; z-index: 30; display: none; }
+.deck-blank.on { display: block; }
+.deck-overview {
+  position: fixed; inset: 0; z-index: 40; background: rgba(8, 8, 12, 0.94); display: none; padding: 48px; overflow: auto;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; align-content: start;
+}
+.deck-overview.on { display: grid; }
+.deck-overview-item {
+  display: flex; gap: 12px; align-items: baseline; text-align: left; padding: 16px 18px; border-radius: 12px; cursor: pointer;
+  background: #1a1a21; color: #f4f3ef; border: 1px solid #2e2e37; font: 500 15px/1.4 var(--deck-sans);
+}
+.deck-overview-item b { color: var(--deck-accent); font-variant-numeric: tabular-nums; }
+.deck-overview-item[aria-current] { border-color: var(--deck-accent); }
+.deck-overview-item:hover, .deck-overview-item:focus-visible { background: #24242d; outline: none; }

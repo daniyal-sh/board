@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ASPECTS, PROJECT_KINDS, type AgentRequest, type ProviderStatus, type SceneMeta, type Selection } from "@studio/shared";
+import { ASPECTS, PROJECT_KINDS, SLIDES_ENGINES, animationKind, type AgentRequest, type ProviderStatus, type SceneMeta, type Selection } from "@studio/shared";
 import { errorMessage, studio } from "../lib/api";
 import { useProject } from "../lib/useProject";
 import { createPlayerBus, segmentAt, type Step } from "../lib/player";
@@ -9,6 +9,7 @@ import { HistoryMenu } from "./HistoryMenu";
 import { WebPreview } from "./WebPreview";
 import { VideoStage } from "./VideoStage";
 import { WebStage } from "./WebStage";
+import { SlidesStage } from "./SlidesStage";
 import { ExportDialog } from "./ExportDialog";
 import { Timeline } from "./Timeline";
 import { TakeEditor } from "./TakeEditor";
@@ -82,7 +83,8 @@ function Splitter(props: { onDrag: (dx: number) => void; onReset: () => void }) 
 const kickedOff = new Set<string>();
 const voicedScript = new Set<string>();
 
-type Mode = "edit" | "voice";
+/** Slides add "deck": the deck as presented. "edit" is the animation timeline. */
+type Mode = "deck" | "edit" | "voice";
 
 export function Studio(props: {
   projectId: string;
@@ -101,7 +103,7 @@ export function Studio(props: {
   const [shareOpen, setShareOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [layout, setLayout] = useState(loadLayout);
-  const [mode, setMode] = useState<Mode>("edit");
+  const [mode, setMode] = useState<Mode>("deck");
   const [voiceMode, setVoiceMode] = useState<VoiceMode>(() => (read("board.voiceMode") === "record" ? "record" : "ai"));
   const [mic, setMic] = useState<MicSettings>(loadMicSettings);
   const [recording, setRecording] = useState<string | null>(null);
@@ -109,7 +111,7 @@ export function Studio(props: {
   /** The assistant panel: open by default while editing, closed by default during voice-over. */
   const [chatOpen, setChatOpen] = useState(() => read("board.assistant") !== "0");
   const [chatInVoice, setChatInVoice] = useState(false);
-  const showChat = mode === "edit" ? chatOpen : chatInVoice;
+  const showChat = mode === "voice" ? chatInVoice : chatOpen;
   const toggleChat = () => {
     if (mode === "voice") return setChatInVoice((o) => !o);
     setChatOpen((o) => {
@@ -126,10 +128,16 @@ export function Studio(props: {
   const resetSide = (side: Side) => resize(side, DEFAULT_LAYOUT[side] - layout[side]);
 
   const manifest = p.project?.manifest;
-  const scenes = manifest?.scenes ?? [];
-  const activeScene = scenes.find((s) => s.id === sceneId) ?? scenes[0];
+  const allScenes = manifest?.scenes ?? [];
   const isLab = manifest?.kind === "lab";
-  const narration = useNarration(props.projectId, scenes, p.revision, Boolean(manifest) && !isLab);
+  const isSlides = manifest?.kind === "slides";
+  const anim = manifest ? animationKind(manifest) : null;
+  // Slides: the timeline and the voice-over are about the animated slides only.
+  const animScenes = useMemo(() => (isSlides ? allScenes.filter((s) => s.slideType !== "html") : allScenes), [isSlides, allScenes]);
+  const deckMode = isSlides && mode === "deck";
+  const scenes = deckMode ? allScenes : animScenes;
+  const activeScene = scenes.find((s) => s.id === sceneId) ?? scenes[0];
+  const narration = useNarration(props.projectId, animScenes, p.revision, Boolean(manifest) && !isLab);
   // While recording, the stage keeps what it shows: a rebuild would pull the scene out from under the take.
   const frozenStage = useRef({ revision: p.revision, busy: p.busy });
   if (!recording) frozenStage.current = { revision: p.revision, busy: p.busy };
@@ -171,9 +179,14 @@ export function Studio(props: {
     void studio.agents.setSelection(props.projectId, selection);
   }, [props.projectId, selection]);
 
+  // Only Slides have the deck view.
+  useEffect(() => {
+    if (manifest && !isSlides && mode === "deck") setMode("edit");
+  }, [manifest?.kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Leaving voice-over stops any recording and closes the take editor.
   useEffect(() => {
-    if (mode === "edit") {
+    if (mode !== "voice") {
       setRecording(null);
       setEditingTake(null);
     }
@@ -184,7 +197,7 @@ export function Studio(props: {
     if (editingTake && narration.loaded && takeInfo?.source !== "recording") setEditingTake(null);
   }, [editingTake, narration.loaded, takeInfo?.source]);
 
-  const thumbs = useMemo(() => Object.fromEntries(scenes.map((s) => [s.id, s.thumbUrl])), [scenes]);
+  const thumbs = useMemo(() => Object.fromEntries(animScenes.map((s) => [s.id, s.thumbUrl])), [animScenes]);
 
   if (!p.project || !manifest) {
     return (
@@ -261,6 +274,7 @@ export function Studio(props: {
           )}
           <span className="tag hidden flex-none bg-soft text-muted xl:inline-flex">
             {PROJECT_KINDS[manifest.kind].label}
+            {isSlides ? ` · ${SLIDES_ENGINES[anim === "video" ? "video" : "web"].label}` : ""}
             {isLab ? "" : ` · ${ASPECTS[manifest.aspect ?? "landscape"].label}`}
           </span>
         </div>
@@ -268,8 +282,13 @@ export function Studio(props: {
         <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
           {!isLab && (
             <div className="seg" role="tablist" aria-label="Studio mode">
+              {isSlides && (
+                <button role="tab" aria-selected={mode === "deck"} data-on={mode === "deck"} onClick={() => setMode("deck")} disabled={Boolean(recording)}>
+                  Slides
+                </button>
+              )}
               <button role="tab" aria-selected={mode === "edit"} data-on={mode === "edit"} onClick={() => setMode("edit")} disabled={Boolean(recording)}>
-                Animation
+                {isSlides ? "Timeline" : "Animation"}
               </button>
               <button role="tab" aria-selected={mode === "voice"} data-on={mode === "voice"} onClick={() => setMode("voice")}>
                 <i className="block h-[7px] w-[7px] rounded-full" style={{ background: mode === "voice" ? "var(--color-voice)" : "currentColor", opacity: mode === "voice" ? 1 : 0.5 }} />
@@ -302,7 +321,27 @@ export function Studio(props: {
             </div>
           )}
           <div className={`min-h-0 min-w-0 ${locked ? "pointer-events-none" : ""}`}>
-            {manifest.kind === "video" ? (
+            {deckMode ? (
+              <SlidesStage
+                projectId={manifest.id}
+                revision={stageRevision}
+                busy={stageBusy}
+                aspect={manifest.aspect}
+                slides={allScenes}
+                activeSlide={activeScene}
+                onActiveSlide={setSceneId}
+                selection={selection}
+                onSelect={(part, info) =>
+                  setSelection(part ? { part, kind: info?.tag, sceneId: info?.slide ?? activeScene?.id, source: info?.slide ? { file: allScenes.find((x) => x.id === info.slide)?.file ?? "" } : undefined } : null)
+                }
+                onThumbnails={() => void p.reload()}
+                leading={picker}
+              />
+            ) : isSlides && !animScenes.length ? (
+              <div className="grid h-full place-items-center p-8 text-center text-muted">
+                No animated slides yet. The timeline shows the Manim or manim-web slides once there are some.
+              </div>
+            ) : anim === "video" ? (
               <VideoStage
                 projectId={manifest.id}
                 scene={activeScene}
@@ -317,7 +356,7 @@ export function Studio(props: {
                 leading={picker}
                 busy={stageBusy}
               />
-            ) : manifest.kind === "web" ? (
+            ) : anim === "web" ? (
               <WebStage
                 projectId={manifest.id}
                 revision={stageRevision}
@@ -337,6 +376,7 @@ export function Studio(props: {
             )}
           </div>
           {!isLab &&
+            !deckMode &&
             (editingTake && takeInfo?.source === "recording" ? (
               <TakeEditor
                 key={editingTake}
@@ -369,7 +409,7 @@ export function Studio(props: {
           <aside className="min-h-0 overflow-hidden border-l border-line bg-surface" aria-label="Voice-over">
             <VoiceOver
               projectId={manifest.id}
-              kind={manifest.kind === "web" ? "web" : "video"}
+              kind={anim === "web" ? "web" : "video"}
               scenes={scenes}
               activeSceneId={activeScene?.id}
               narration={narration}
@@ -412,7 +452,7 @@ export function Studio(props: {
             busy={p.busy}
             error={p.error}
             selection={selection}
-            sceneLabel={!isLab && activeScene ? `Scene: ${activeScene.title}` : undefined}
+            sceneLabel={!isLab && activeScene ? `${isSlides ? "Slide" : "Scene"}: ${activeScene.title}` : undefined}
             onClearSelection={() => setSelection(null)}
             onSend={(text) => ask(text)}
             onClose={toggleChat}

@@ -41,7 +41,8 @@ interface Finding {
 /**
  * @param frameHeightPx rendered height used to describe text size (1080 for 16:9, 1920 for 9:16)
  */
-export function analyseLayout(snaps: LayoutSnapshot[], opts: { frameHeightPx: number; maxFindings?: number } = { frameHeightPx: 1080 }): string[] {
+/** `unit: "step"`: snapshot times are slide step indexes (0-based), reported as "step n". */
+export function analyseLayout(snaps: LayoutSnapshot[], opts: { frameHeightPx: number; maxFindings?: number; unit?: "s" | "step" } = { frameHeightPx: 1080 }): string[] {
   const found: Finding[] = [];
   for (const s of snaps) {
     const items = s.items.filter((it) => area(it.box) > 0 || isText(it));
@@ -86,7 +87,14 @@ export function analyseLayout(snaps: LayoutSnapshot[], opts: { frameHeightPx: nu
     const first = group[0];
     const last = group[group.length - 1];
     const where = first.scene ? `in ${first.scene} ` : "";
-    const range = group.length === 1 ? `${where}at ${first.t.toFixed(1)} s` : `${where}from ${first.t.toFixed(1)} to ${last.t.toFixed(1)} s`;
+    const range =
+      opts.unit === "step"
+        ? group.length === 1 || first.t === last.t
+          ? `${where}at step ${first.t + 1}`
+          : `${where}from step ${first.t + 1} to ${last.t + 1}`
+        : group.length === 1
+          ? `${where}at ${first.t.toFixed(1)} s`
+          : `${where}from ${first.t.toFixed(1)} to ${last.t.toFixed(1)} s`;
     lines.push({ t: first.t, line: first.text(range) });
   }
   lines.sort((a, b) => a.t - b.t);

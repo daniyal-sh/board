@@ -84,6 +84,8 @@ async function record() {
       const scene: any = new Proxy(rec, {
         get(target, prop) {
           if (prop === "waitUntil") return waitUntil;
+          // Slides: a step boundary. The timeline plays straight through.
+          if (prop === "nextSlide") return async () => {};
           if (prop === "add") return add;
           if (prop === "remove") return remove;
           const own = (target as any)[prop];

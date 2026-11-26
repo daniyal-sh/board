@@ -35,6 +35,10 @@ export const Desktop = (p: P) => base(p, <><rect x="3" y="4" width="18" height="
 export const Check = (p: P) => base(p, <path d="M5 12l5 5 9-10" />, 2.4);
 export const VideoIcon = (p: P) => base(p, <><rect x="3" y="5" width="13" height="14" rx="2" /><path d="M16 10l5-3v10l-5-3" /></>);
 export const Wave = (p: P) => base(p, <path d="M2 12c2.5-6 5.5-6 8 0s5.5 6 8 0 3-4 4-4" />);
+export const SlidesIcon = (p: P) => base(p, <><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M12 16v4M8 20h8M7 12l3-3 2 2 4-4" /></>);
+export const Present = (p: P) => base(p, <><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M10 8.5v5l4.5-2.5z" /><path d="M8 21h8" /></>);
+export const Prev = (p: P) => base(p, <path d="M14.5 6l-6 6 6 6" />);
+export const Next = (p: P) => base(p, <path d="M9.5 6l6 6-6 6" />);
 export const Flask = (p: P) => base(p, <><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3" /><path d="M7 15h10" /></>);
 export const Sun = (p: P) => base(p, <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>);
 export const Moon = (p: P) => base(p, <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />);
@@ -49,8 +53,10 @@ export const Lock = (p: P) => base(p, <><rect x="5" y="11" width="14" height="10
 export const Globe = (p: P) => base(p, <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>);
 export const Folder = (p: P) => base(p, <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />);
 
-/** Small dark tiles used for the three project kinds. */
-export function KindGlyph({ kind, size = 22 }: { kind: "video" | "web" | "lab"; size?: number }) {
+/** Small dark tiles used for the project kinds. */
+export function KindGlyph({ kind, size = 22 }: { kind: "video" | "web" | "lab" | "slides"; size?: number }) {
+  if (kind === "slides")
+    return <svg width={size} height={size} viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="1.5" fill="none" stroke="#9A72AC" strokeWidth="2" /><path d="M7 13l3-3 2 2 4-4" fill="none" stroke="#FFE14D" strokeWidth="2" /></svg>;
   if (kind === "video")
     return <svg width={size} height={size} viewBox="0 0 24 24"><path d="M3 18 C7 4 11 6 14 13 S20 15 22 6" fill="none" stroke="#58C4DD" strokeWidth="2" /></svg>;
   if (kind === "web")

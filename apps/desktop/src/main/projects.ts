@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { basename, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { claudeMd, projectInstructions, templates } from "@studio/agent-kit";
+import { animationKind } from "@studio/shared";
 import type {
   ChatTurn,
   CreateProjectInput,
@@ -9,6 +10,7 @@ import type {
   ProjectManifest,
   ProjectSummary,
   SceneMeta,
+  SlidesEngine,
 } from "@studio/shared";
 import { commitAll, initHistory } from "./history";
 import { agentDefaults } from "./agents/models";
@@ -83,8 +85,8 @@ class ProjectStore {
       const thumb = join(dir, "build", "thumb.png");
       const thumbUrl = fs.existsSync(thumb) ? `studio-preview://${m.id}/thumb.png?v=${Math.round(fs.statSync(thumb).mtimeMs)}` : undefined;
       const sceneDir = join(dir, "scenes");
-      const sceneCount = m.kind === "lab" || !fs.existsSync(sceneDir) ? undefined : fs.readdirSync(sceneDir).filter((f) => /^[^_.].*\.(py|ts)$/.test(f) && f !== "index.ts").length;
-      out.push({ id: m.id, kind: m.kind, title: m.title, updatedAt: m.updatedAt, dir, thumbUrl, aspect: m.aspect, sceneCount });
+      const sceneCount = m.kind === "lab" || !fs.existsSync(sceneDir) ? undefined : fs.readdirSync(sceneDir).filter((f) => /^[^_.].*\.(py|ts|html)$/.test(f) && f !== "index.ts").length;
+      out.push({ id: m.id, kind: m.kind, title: m.title, updatedAt: m.updatedAt, dir, thumbUrl, aspect: m.aspect, engine: m.engine, sceneCount });
     }
     return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
@@ -92,7 +94,7 @@ class ProjectStore {
   manifest(id: string): ProjectManifest {
     const m = readJson<ProjectManifest | null>(join(this.dir(id), MANIFEST), null);
     if (!m) throw new Error("project.json is missing or invalid");
-    return { ...m, scenes: scanScenes(this.dir(id), m.kind) };
+    return { ...m, scenes: scanScenes(this.dir(id), m.kind, m.engine) };
   }
 
   saveManifest(m: ProjectManifest): void {
@@ -123,20 +125,21 @@ class ProjectStore {
       titleAuto: !input.title?.trim(),
       length: input.length,
       ...(input.kind !== "lab" && input.aspect === "vertical" ? { aspect: "vertical" as const } : {}),
+      ...(input.kind === "slides" ? { engine: input.engine ?? "web" } : {}),
       createdAt: now,
       updatedAt: now,
       scenes: [],
       agent: input.agent ?? { ...agentDefaults(), ...(input.provider ? { provider: input.provider } : {}) },
     };
     writeJson(join(dir, MANIFEST), manifest);
-    for (const [rel, content] of Object.entries(templates(input.kind, title))) {
+    for (const [rel, content] of Object.entries(templates(input.kind, title, manifest.engine))) {
       fs.mkdirSync(join(dir, rel, ".."), { recursive: true });
       fs.writeFileSync(join(dir, rel), content);
     }
     this.writeAgentFiles(dir, manifest);
     this.dirs.set(manifest.id, dir);
     await initHistory(dir);
-    return { manifest: { ...manifest, scenes: scanScenes(dir, manifest.kind) }, dir, chat: [] };
+    return { manifest: { ...manifest, scenes: scanScenes(dir, manifest.kind, manifest.engine) }, dir, chat: [] };
   }
 
   /** AGENTS.md, CLAUDE.md and the guide folder. Refreshed on every open so guides stay current. */
@@ -144,7 +147,7 @@ class ProjectStore {
     const libsDir = join(paths.labKitDir, "node_modules");
     fs.writeFileSync(
       join(dir, "AGENTS.md"),
-      projectInstructions({ kind: m.kind, title: m.title, length: m.length, audience: m.audience, aspect: m.aspect, libsDir }),
+      projectInstructions({ kind: m.kind, title: m.title, length: m.length, audience: m.audience, aspect: m.aspect, engine: m.engine, libsDir }),
     );
     fs.writeFileSync(join(dir, "CLAUDE.md"), claudeMd());
     const guideDir = join(dir, ".studio", "guide");
@@ -166,6 +169,11 @@ class ProjectStore {
     let found: string | undefined;
     if (m.kind === "lab") {
       const h1 = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(readText(join(this.dir(id), "lab", "index.html")))?.[1];
+      found = h1 ? stripTags(h1) : undefined;
+    }
+    if (m.kind === "slides") {
+      const first = m.scenes.find((x) => x.slideType === "html");
+      const h1 = first ? /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(readText(join(this.dir(id), first.file)))?.[1] : undefined;
       found = h1 ? stripTags(h1) : undefined;
     }
     if (found && found.length > 2 && found.length < 90 && found !== m.title) this.saveManifest({ ...m, title: found, titleAuto: false });
@@ -215,34 +223,47 @@ function copyDir(from: string, to: string, transform: (text: string) => string):
 }
 
 /** The storyboard is derived from the project files, so the agent never has to maintain a list. */
-export function scanScenes(dir: string, kind: ProjectManifest["kind"]): SceneMeta[] {
+export function scanScenes(dir: string, kind: ProjectManifest["kind"], engine?: SlidesEngine): SceneMeta[] {
   // A Lab is one page: no storyboard.
   if (kind === "lab") return [];
-  const ext = kind === "video" ? ".py" : ".ts";
+  const anim = animationKind({ kind, engine });
+  const ext = anim === "video" ? ".py" : ".ts";
   const sceneDir = join(dir, "scenes");
   if (!fs.existsSync(sceneDir)) return [];
+  const pid = readJson<{ id?: string }>(join(dir, MANIFEST), {}).id;
   return fs
     .readdirSync(sceneDir)
-    .filter((f) => f.endsWith(ext) && f !== "index.ts" && !f.startsWith("_"))
+    .filter((f) => (f.endsWith(ext) || (kind === "slides" && f.endsWith(".html"))) && f !== "index.ts" && !f.startsWith("_"))
     .sort()
     .map((f) => {
       const src = readText(join(sceneDir, f));
-      const title =
-        kind === "video"
+      const html = f.endsWith(".html");
+      const fileExt = html ? ".html" : ext;
+      const title = html
+        ? htmlSlideTitle(src)
+        : anim === "video"
           ? /class\s+\w+\s*\([^)]*\)\s*:\s*\n\s*(?:"""|''')(.+?)(?:"""|'''|\n)/.exec(src)?.[1]
           : /export\s+const\s+title\s*=\s*["'`](.+?)["'`]/.exec(src)?.[1];
-      const id = basename(f, ext);
+      const id = basename(f, fileExt);
       const rendered = join(dir, "build", "scenes", `${id}.mp4`);
       const thumb = join(dir, "build", "thumbs", `${id}.png`);
-      const pid = readJson<{ id?: string }>(join(dir, MANIFEST), {}).id;
       return {
         id,
         title: title?.trim() || humanize(id.replace(/^\d+_/, "")),
         file: `scenes/${f}`,
-        status: fs.existsSync(rendered) || (kind === "web" && fs.existsSync(thumb)) ? "rendered" : "sketch",
+        status: html || fs.existsSync(rendered) || (anim === "web" && fs.existsSync(thumb)) ? "rendered" : "sketch",
         thumbUrl: fs.existsSync(thumb) && pid ? `studio-preview://${pid}/thumbs/${id}.png?v=${Math.round(fs.statSync(thumb).mtimeMs)}` : undefined,
+        ...(kind === "slides" ? { slideType: html ? ("html" as const) : ("animation" as const) } : {}),
       } satisfies SceneMeta;
     });
+}
+
+/** `<!-- title: … -->`, else the first heading. */
+export function htmlSlideTitle(src: string): string | undefined {
+  const explicit = /<!--\s*title:\s*(.+?)\s*-->/i.exec(src)?.[1];
+  if (explicit) return explicit;
+  const h = /<h[12][^>]*>([\s\S]*?)<\/h[12]>/i.exec(src)?.[1];
+  return h ? stripTags(h) || undefined : undefined;
 }
 
 function readText(file: string): string {

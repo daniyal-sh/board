@@ -1,4 +1,4 @@
-import type { AgentEvent } from "@studio/shared";
+import { animationKind, type AgentEvent } from "@studio/shared";
 import { sendToAgent } from "./agents/manager";
 import { projects } from "./projects";
 import { videoEnvStatus } from "./video/env";
@@ -9,7 +9,7 @@ type Emit = (e: AgentEvent) => void;
 
 /** Scenes follow the voice: re-render (video) or rebuild (web) once narration changes. */
 export async function retimeScene(id: string, scene: string, progress: (m: string) => void, emit: Emit): Promise<void> {
-  if (projects.manifest(id).kind === "video" && videoEnvStatus().ready) {
+  if (animationKind(projects.manifest(id)) === "video" && videoEnvStatus().ready) {
     progress("Re-timing the scene to the narration…");
     await video.renderPreview(id, scene);
   }
@@ -41,9 +41,11 @@ export async function autoNarrate(id: string, opts: { voice: string; speed: numb
       {
         projectId: id,
         text:
-          "Write narration for every scene: one natural script per scene in narration/<scene>.md, matched to the level of the class. " +
+          (m.kind === "slides"
+            ? "Write narration for every animated slide (not the HTML slides): one natural script per slide in narration/<slide>.md, matched to the level of the class. "
+            : "Write narration for every scene: one natural script per scene in narration/<scene>.md, matched to the level of the class. ") +
           "Put {{mark:name}} cues before the words where animations should start, and add the matching wait calls in each scene (" +
-          (m.kind === "video" ? "self.wait_until(\"name\")" : "await scene.waitUntil(\"name\")") +
+          (animationKind(m) === "video" ? "self.wait_until(\"name\")" : "await scene.waitUntil(\"name\")") +
           "). Keep the animations themselves as they are.",
       },
       w.emit,
@@ -54,7 +56,7 @@ export async function autoNarrate(id: string, opts: { voice: string; speed: numb
   const voiced: string[] = [];
   const failed: { sceneId: string; error: string }[] = [];
   projects.saveManifest({ ...projects.manifest(id), voice: { voice: opts.voice, speed: opts.speed } });
-  const scenes = projects.manifest(id).scenes.filter((s) => voice.readScript(id, s.id).trim());
+  const scenes = projects.manifest(id).scenes.filter((s) => s.slideType !== "html" && voice.readScript(id, s.id).trim());
   for (const [i, s] of scenes.entries()) {
     try {
       progress(`Voicing “${s.title}” (${i + 1} of ${scenes.length})…`);

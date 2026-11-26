@@ -284,6 +284,9 @@ importers:
       manim-web:
         specifier: ^0.42.0
         version: 0.42.0(@types/node@26.6.6)(react@19.3.1)(typescript@7.0.2)
+      mathjax:
+        specifier: ^3.2.2
+        version: 3.2.2
       matter-js:
         specifier: ^0.20.0
         version: 0.20.0
@@ -2725,6 +2728,9 @@ packages:
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
+
+  mathjax@3.2.2:
+    resolution: {integrity: sha512-Bt+SSVU8eBG27zChVewOicYs7Xsdt40qm4+UpHyX7k0/O9NliPc+x77k1/FEsPsjKPZGJvtRZM1vO+geW0OhGw==}
 
   matter-js@0.20.0:
     resolution: {integrity: sha512-iC9fYR7zVT3HppNnsFsp9XOoQdQN2tUyfaKg4CHLH8bN+j6GT4Gw7IH2rP0tflAebrHFw730RR3DkVSZRX8hwA==}
@@ -5967,6 +5973,8 @@ snapshots:
       escape-string-regexp: 4.0.0
 
   math-intrinsics@1.1.0: {}
+
+  mathjax@3.2.2: {}
 
   matter-js@0.20.0: {}
 

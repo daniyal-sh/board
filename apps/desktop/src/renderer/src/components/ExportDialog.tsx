@@ -39,7 +39,7 @@ export function ExportDialog(props: { manifest: ProjectManifest; onClose: () => 
             onClick={() => run("mp4", async () => saved(await studio.video.exportMp4(m.id)))}
           />
         )}
-        {m.kind !== "lab" && (
+        {m.kind !== "lab" && m.kind !== "slides" && (
           <Row
             icon="GIF"
             title="Looping GIF"
@@ -59,7 +59,11 @@ export function ExportDialog(props: { manifest: ProjectManifest; onClose: () => 
             <Row
               icon="HTML"
               title="Single HTML file"
-              hint="Everything inlined. Opens offline in any browser; upload it to your LMS or send it to students."
+              hint={
+                m.kind === "slides"
+                  ? "The whole deck in one file. Opens offline in any browser; present it with the arrow keys or share it with students."
+                  : "Everything inlined. Opens offline in any browser; upload it to your LMS or send it to students."
+              }
               action="Save"
               disabled={!!busy}
               onClick={() => run("html", async () => saved(await studio.build.exportHtml(m.id)))}

@@ -31,6 +31,7 @@ fs.writeFileSync(
     'import "manim-web";',
     'import "p5"; import "roughjs";',
     'import "./src/base.css";',
+    'import "./src/deck/core.ts"; import "./src/deck/web.ts"; import "./src/deck/video.ts";',
   ].join("\n"),
 );
 const result = await esbuild.build({
@@ -72,6 +73,8 @@ for (const input of Object.keys(result.metafile.inputs)) {
 }
 // Three.js examples are imported by many different paths; keep the whole package.
 keep.add("three");
+// Inlined as a classic script for pages with manim-web (MathTex); see bundle.ts.
+keep.add("mathjax");
 
 let removed = 0;
 for (const name of fs.readdirSync(nm)) {
@@ -98,6 +101,12 @@ const trims = [
 for (const t of trims) fs.rmSync(join(nm, t), { recursive: true, force: true });
 for (const f of fs.readdirSync(join(nm, "manim-web", "dist"))) {
   if (/^MathJaxBundle-/.test(f)) fs.rmSync(join(nm, "manim-web", "dist", f)); // stubbed out by the builder
+}
+for (const f of fs.readdirSync(join(nm, "mathjax"))) {
+  if (f !== "es5" && f !== "package.json") fs.rmSync(join(nm, "mathjax", f), { recursive: true });
+}
+for (const f of fs.readdirSync(join(nm, "mathjax", "es5"))) {
+  if (f !== "tex-svg-full.js") fs.rmSync(join(nm, "mathjax", "es5", f), { recursive: true }); // the only file builds read
 }
 for (const f of fs.readdirSync(join(nm, "jsxgraph", "distrib"))) {
   if (f !== "jsxgraph.css") fs.rmSync(join(nm, "jsxgraph", "distrib", f), { recursive: true }); // Labs import src/
