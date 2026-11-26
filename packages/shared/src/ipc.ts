@@ -123,7 +123,10 @@ export interface StudioApi {
     preview(projectId: string, sceneId?: string): Promise<BuildResult>;
     /** Slides: build the deck (Manim slides: renders missing drafts first; progress on video.onProgress). */
     deck(projectId: string): Promise<BuildResult & { warnings: string[] }>;
-    exportHtml(projectId: string): Promise<{ path: string } | null>;
+    /** Slides with large Manim clips are saved as the page plus a folder of clips (`folder`). */
+    exportHtml(projectId: string): Promise<{ path: string; folder?: string } | null>;
+    /** Slides: a PDF (one page per step, or per slide) or a PowerPoint file (one slide per step, with notes). */
+    exportDeck(projectId: string, format: "pdf" | "pptx", opts: { perSlide: boolean }): Promise<{ path: string; count: number } | null>;
     /** Web animations: capture a picture of each scene for the storyboard. */
     thumbnails(projectId: string): Promise<void>;
     /** Build the shareable single file and put it on the clipboard. */
@@ -210,6 +213,7 @@ export const IPC = {
   buildDeck: "build:deck",
   buildExportHtml: "build:exportHtml",
   buildCopyHtml: "build:copyHtml",
+  buildExportDeck: "build:exportDeck",
   buildThumbs: "build:thumbs",
   agentSelection: "agent:selection",
   agentModels: "agent:models",

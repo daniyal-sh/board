@@ -11,19 +11,25 @@ export function ExportDialog(props: { manifest: ProjectManifest; onClose: () => 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
+  const [perSlide, setPerSlide] = useState(false);
 
   async function run(label: string, fn: () => Promise<string | null>) {
     setBusy(label);
     setError(null);
     setNote(null);
+    const off = studio.video.onProgress(setProgress);
     try {
       setNote(await fn());
     } catch (e) {
       setError(errorMessage(e));
     } finally {
+      off();
+      setProgress(null);
       setBusy(null);
     }
   }
+  const slides = m.kind === "slides";
   const saved = (r: { path: string } | null) => (r ? `Saved to ${r.path}` : null);
 
   return (
@@ -54,7 +60,54 @@ export function ExportDialog(props: { manifest: ProjectManifest; onClose: () => 
             }
           />
         )}
-        {m.kind !== "video" && (
+        {slides && (
+          <>
+            <Row
+              icon="HTML"
+              title="Slides as a web page"
+              hint="Present from any browser, offline: arrow keys, pen and laser, and a speaker view (S). Large Manim clips are saved in a folder next to it."
+              action={busy === "html" ? "Saving…" : "Save"}
+              disabled={!!busy}
+              onClick={() =>
+                run("html", async () => {
+                  const r = await studio.build.exportHtml(m.id);
+                  return r ? `Saved to ${r.path}${r.folder ? `, with the clips in ${r.folder}. Keep them together.` : ""}` : null;
+                })
+              }
+            />
+            <Row
+              icon="PDF"
+              title="PDF"
+              hint={`${perSlide ? "One page per slide (its last step)" : "One page per step"}, for handouts and printing`}
+              action={busy === "pdf" ? "Making…" : "Export"}
+              disabled={!!busy}
+              onClick={() =>
+                run("pdf", async () => {
+                  const r = await studio.build.exportDeck(m.id, "pdf", { perSlide });
+                  return r ? `Saved ${r.count} pages to ${r.path}` : null;
+                })
+              }
+            />
+            <Row
+              icon="PPTX"
+              title="PowerPoint"
+              hint={`${perSlide ? "One slide per slide" : "One slide per step"}, as pictures, with your speaker notes. Opens in PowerPoint, Keynote and Google Slides.`}
+              action={busy === "pptx" ? "Making…" : "Export"}
+              disabled={!!busy}
+              onClick={() =>
+                run("pptx", async () => {
+                  const r = await studio.build.exportDeck(m.id, "pptx", { perSlide });
+                  return r ? `Saved ${r.count} slides to ${r.path}` : null;
+                })
+              }
+            />
+            <label className="flex items-center gap-2 px-1 py-1 text-[12.5px] text-muted">
+              <input type="checkbox" checked={perSlide} onChange={(e) => setPerSlide(e.target.checked)} />
+              PDF and PowerPoint: only the finished slide, not every step
+            </label>
+          </>
+        )}
+        {m.kind !== "video" && !slides && (
           <>
             <Row
               icon="HTML"
@@ -92,6 +145,11 @@ export function ExportDialog(props: { manifest: ProjectManifest; onClose: () => 
         />
       </div>
 
+      {progress && busy && (
+        <div className="mt-3 flex items-center gap-2 text-[12.5px] text-muted">
+          <span className="spinner" /> {progress}
+        </div>
+      )}
       {note && <div className="mt-3 rounded-lg border border-good-line bg-good-soft px-3 py-2 text-[13px] text-good">{note}</div>}
       {error && <div className="mt-3 whitespace-pre-wrap rounded-lg border border-bad-line bg-bad-soft px-3 py-2 text-[13px] text-bad">{error}</div>}
 

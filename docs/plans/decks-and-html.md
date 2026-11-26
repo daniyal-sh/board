@@ -18,8 +18,8 @@
 
 1. **Freer HTML** (done): Lab guide rewritten around forms that work; `@studio/lab-kit/base.css`; neutral starter page; p5.js and Rough.js.
 2. **Slides** (done): the kind and engine choice; `scenes/NN_*.html|.ts|.py`, `notes/`; the deck runtime (steps, keys, click, overview, black screen, HUD); the Slides view (deck preview, step controls, filmstrip, select-to-edit); the Timeline and Voice-over tabs for the animated slides; assistant guide and tools (render_preview checks every step, get_keyframes per step, interact on interactive slides); `self.next_slide()`; MathJax inlined so `MathTex` works offline.
-3. **Presenting**: an audience window (full screen on the second display) and a presenter view in the main window (live mirror of the audience screen, next step, notes, timer); pen, highlighter and laser over any slide; the same in the exported file (a speaker tab synced with `postMessage`).
-4. **Export**: one HTML file (or a page plus a media folder when clips make it large), PDF (one page per step), PPTX (one slide per step with speaker notes).
+3. **Presenting** (done): an audience window (full screen on the second display) and a presenter view in the main window (live mirror of the audience screen, next step, notes, timer); pen, highlighter and laser over any slide; the same in the exported file (a speaker tab synced with `postMessage`).
+4. **Export** (done): one HTML file (or a page plus a media folder when clips make it large), PDF (one page per step), PPTX (one slide per step with speaker notes).
 
 ## How a deck plays
 
