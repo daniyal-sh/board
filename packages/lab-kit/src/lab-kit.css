@@ -1,55 +1,5 @@
-/* Lab kit: the house style every Lab starts from. Override freely in lab/style.css. */
-:root {
-  --lab-bg: #fbfaf7;
-  --lab-surface: #ffffff;
-  --lab-ink: #17171c;
-  --lab-ink-2: #43434d;
-  --lab-muted: #85838e;
-  --lab-line: #e7e4dd;
-  --lab-accent: #5146e5;
-  --lab-accent-soft: #efeefd;
-  --lab-good: #2f7d4a;
-  --lab-good-soft: #e8f5ec;
-  --lab-bad: #b2433a;
-  --lab-bad-soft: #fdecea;
-  --lab-stage: #0e0e12;
-  /* Manim palette, for canvases and diagrams */
-  --manim-blue: #58c4dd;
-  --manim-yellow: #ffe14d;
-  --manim-red: #fc6255;
-  --manim-green: #83c167;
-  --manim-purple: #9a72ac;
-  --lab-radius: 12px;
-  --lab-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --lab-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --lab-mono: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
-  color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --lab-bg: #121216;
-    --lab-surface: #1b1b21;
-    --lab-ink: #f1f0ec;
-    --lab-ink-2: #c9c7cf;
-    --lab-muted: #8e8c97;
-    --lab-line: #2c2c34;
-    --lab-accent: #8b84ff;
-    --lab-accent-soft: #24233d;
-    --lab-good: #7ccf98;
-    --lab-good-soft: #17301f;
-    --lab-bad: #ff8f84;
-    --lab-bad-soft: #3a1c19;
-    color-scheme: dark;
-  }
-}
-*, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0;
-  background: var(--lab-bg);
-  color: var(--lab-ink);
-  font: 16px/1.55 var(--lab-sans);
-}
+/* Lab kit: the house style for Labs (cards, sliders, checks, steps). Override freely in lab/style.css. */
+@import "./base.css";
 .lab {
   max-width: 980px;
   margin: 0 auto;

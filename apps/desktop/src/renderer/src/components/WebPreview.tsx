@@ -17,6 +17,8 @@ const LIB_LABEL: Record<string, string> = {
   "matter-js": "Matter.js",
   gsap: "GSAP",
   "manim-web": "manim-web",
+  p5: "p5.js",
+  roughjs: "Rough.js",
 };
 
 export function WebPreview(props: {
@@ -175,7 +177,7 @@ export function WebPreview(props: {
             </span>
           ))
         ) : (
-          <span>plain HTML + lab kit</span>
+          <span>plain HTML</span>
         )}
         {consoleLines.length > 0 && (
           <button className="ml-2 rounded-full bg-bad-soft px-2.5 py-0.5 font-medium text-bad" onClick={() => setShowConsole((v) => !v)}>

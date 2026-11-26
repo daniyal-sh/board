@@ -16,7 +16,7 @@ export interface BundleResult {
 }
 
 /** Libraries a Lab may import; anything else under node_modules is reported as a dependency of these. */
-const KNOWN_LIBS = ["katex", "jsxgraph", "d3", "@observablehq/plot", "three", "matter-js", "gsap", "manim-web"];
+const KNOWN_LIBS = ["katex", "jsxgraph", "d3", "@observablehq/plot", "three", "matter-js", "gsap", "manim-web", "p5", "roughjs"];
 
 /** KaTeX's CSS lists woff2, woff and ttf fonts; keep only woff2 so the single file stays small. */
 /**
@@ -48,6 +48,22 @@ const dropMathJaxPlugin: esbuild.Plugin = {
   },
 };
 
+/**
+ * p5.js 2.x fetches its friendly-error translations as soon as it loads (a local JSON file, then
+ * a CDN), even with friendly errors off. Pages are offline: skip the fetch. (IS_MINIFIED, defined
+ * below, turns the friendly-error checks off as in p5's own minified build; they misread a
+ * bundled page and warn about "redeclared" constants that are not the teacher's code.)
+ */
+const p5OfflinePlugin: esbuild.Plugin = {
+  name: "p5-offline-translations",
+  setup(build) {
+    build.onLoad({ filter: /[\\/]p5[\\/]dist[\\/]fes-[\w-]+\.js$/ }, async (args) => {
+      const js = await fs.promises.readFile(args.path, "utf8");
+      return { contents: js.replace(/let translationPromise = new Promise\(async \(resolve\) => \{[\s\S]*?\n\}\);/, "let translationPromise = Promise.resolve();"), loader: "js" };
+    });
+  },
+};
+
 const katexFontsPlugin: esbuild.Plugin = {
   name: "katex-woff2-only",
   setup(build) {
@@ -70,6 +86,7 @@ function labKitAliases(): Record<string, string> {
   return {
     "@studio/lab-kit/math": join(src, "math.ts"),
     "@studio/lab-kit/lab-kit.css": join(src, "lab-kit.css"),
+    "@studio/lab-kit/base.css": join(src, "base.css"),
     "@studio/lab-kit": join(src, "index.ts"),
   };
 }
@@ -122,7 +139,7 @@ async function bundle(entry: string, cwd: string): Promise<{ js: string; css: st
       logLevel: "silent",
       nodePaths: [libsNodeModules()],
       alias: labKitAliases(),
-      plugins: [deepCssPlugin, dropMathJaxPlugin, katexFontsPlugin],
+      plugins: [deepCssPlugin, dropMathJaxPlugin, katexFontsPlugin, p5OfflinePlugin],
       loader: {
         ".woff2": "dataurl",
         ".woff": "empty",
@@ -139,7 +156,7 @@ async function bundle(entry: string, cwd: string): Promise<{ js: string; css: st
         ".txt": "text",
         ".md": "text",
       },
-      define: { "process.env.NODE_ENV": '"production"' },
+      define: { "process.env.NODE_ENV": '"production"', IS_MINIFIED: "true" },
     });
     let js = "";
     let css = "";
