@@ -144,6 +144,21 @@ export interface StudioApi {
     /** Looping GIF of the whole video or web animation (asks where to save). */
     exportGif(projectId: string): Promise<{ path: string; sizeBytes: number } | null>;
   };
+  /** Slides: present in an audience window while the app shows the presenter view. */
+  present: {
+    /** windowed: rehearse in a window on this screen instead of full screen. */
+    start(projectId: string, opts: { slide?: string; step?: number; windowed?: boolean }): Promise<{ external: boolean }>;
+    /** The deck's commands: { cmd: "next" | "prev" | "goto" | "tool" | "color" | "clear" | "blank", ... }. */
+    command(cmd: Record<string, unknown>): Promise<void>;
+    /** A pointer on the presenter's live picture, as 0..1 of the audience screen. */
+    input(ev: { type: "down" | "move" | "up"; x: number; y: number; buttons?: number }): Promise<void>;
+    stop(): Promise<void>;
+    onState(cb: (s: { slide: string; index: number; step: number; steps: number; playing: boolean; position: number; total: number }) => void): () => void;
+    onReady(cb: (d: { slides: { id: string; title: string; type: string; steps: number; notes: string }[] }) => void): () => void;
+    /** A JPEG data URL of the audience screen, several times a second. */
+    onFrame(cb: (dataUrl: string) => void): () => void;
+    onEnded(cb: () => void): () => void;
+  };
   voice: {
     voices(): Promise<VoiceOption[]>;
     script(projectId: string, sceneId: string): Promise<string>;
@@ -212,6 +227,14 @@ export const IPC = {
   exportGif: "export:gif",
   videoFull: "video:full",
   videoProgress: "video:progress",
+  presentStart: "present:start",
+  presentCommand: "present:command",
+  presentInput: "present:input",
+  presentStop: "present:stop",
+  presentState: "present:state",
+  presentReady: "present:ready",
+  presentFrame: "present:frame",
+  presentEnded: "present:ended",
   voiceList: "voice:list",
   voiceScript: "voice:script",
   voiceSaveScript: "voice:saveScript",

@@ -42,7 +42,7 @@ export function SlidesStage(props: {
   selection: Selection | null;
   onSelect: (part: string | null, info?: { tag?: string; text?: string; slide?: string; step?: number }) => void;
   onThumbnails?: () => void;
-  onPresent?: (pos: DeckPosition | null, slides: DeckSlide[]) => void;
+  onPresent?: (pos: DeckPosition | null, slides: DeckSlide[], windowed: boolean) => void;
   leading?: React.ReactNode;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
@@ -57,6 +57,7 @@ export function SlidesStage(props: {
   const [pos, setPos] = useState<DeckPosition | null>(null);
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
   const [showConsole, setShowConsole] = useState(false);
+  const [presentMenu, setPresentMenu] = useState(false);
   const builds = useRef(0);
   const posRef = useRef<DeckPosition | null>(null);
   posRef.current = pos;
@@ -197,17 +198,54 @@ export function SlidesStage(props: {
         <button className="icon-btn flex-none" title="Rebuild the slides" onClick={() => void build()} disabled={Boolean(building)}>
           <Refresh size={15} />
         </button>
-        <button
-          className="btn btn-sm flex-none"
-          disabled={!url || !deckSlides.length}
-          title="Present the slides"
-          onClick={() => {
-            if (props.onPresent) props.onPresent(pos, deckSlides);
-            else void frameBox.current?.requestFullscreen().then(() => frame.current?.focus());
-          }}
-        >
-          <Present size={15} /> Present
-        </button>
+        <div className="relative flex flex-none">
+          <button
+            className="btn btn-sm rounded-r-none"
+            disabled={!url || !deckSlides.length}
+            title="Present: the slides go full screen (on the second display if there is one) and this window shows the presenter view"
+            onClick={() => {
+              if (props.onPresent) props.onPresent(pos, deckSlides, false);
+              else void frameBox.current?.requestFullscreen().then(() => frame.current?.focus());
+            }}
+          >
+            <Present size={15} /> Present
+          </button>
+          <button className="btn btn-sm -ml-px rounded-l-none px-1.5" disabled={!url || !deckSlides.length} aria-haspopup="menu" aria-expanded={presentMenu} title="More ways to present" onClick={() => setPresentMenu((o) => !o)}>
+            <span className="text-[10px]">▾</span>
+          </button>
+          {presentMenu && (
+            <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-30 w-[260px] rounded-xl border border-line bg-surface p-1.5 shadow-2 animate-in" onMouseLeave={() => setPresentMenu(false)}>
+              {[
+                { label: "Present", hint: "Full screen, with the presenter view here", windowed: false },
+                { label: "Rehearse in a window", hint: "The slides in a window on this screen, with the presenter view", windowed: true },
+              ].map((o) => (
+                <button
+                  key={o.label}
+                  role="menuitem"
+                  className="block w-full rounded-[8px] px-2.5 py-1.5 text-left hover:bg-surface-2"
+                  onClick={() => {
+                    setPresentMenu(false);
+                    props.onPresent?.(pos, deckSlides, o.windowed);
+                  }}
+                >
+                  <b className="block text-[13px] font-medium">{o.label}</b>
+                  <small className="text-[11.5px] text-muted">{o.hint}</small>
+                </button>
+              ))}
+              <button
+                role="menuitem"
+                className="block w-full rounded-[8px] px-2.5 py-1.5 text-left hover:bg-surface-2"
+                onClick={() => {
+                  setPresentMenu(false);
+                  void frameBox.current?.requestFullscreen().then(() => frame.current?.focus());
+                }}
+              >
+                <b className="block text-[13px] font-medium">Full screen preview</b>
+                <small className="text-[11.5px] text-muted">Just the slides, in this window</small>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <StageFrame

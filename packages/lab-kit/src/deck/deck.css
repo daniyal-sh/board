@@ -114,3 +114,23 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
 .deck-overview-item b { color: var(--deck-accent); font-variant-numeric: tabular-nums; }
 .deck-overview-item[aria-current] { border-color: var(--deck-accent); }
 .deck-overview-item:hover, .deck-overview-item:focus-visible { background: #24242d; outline: none; }
+
+/* ---------------------------------------------------------------- ink and tools */
+.deck-ink { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; touch-action: none; }
+.deck-ink:not([data-tool="pointer"]) { pointer-events: auto; cursor: crosshair; }
+.deck-ink[data-tool="laser"] { cursor: none; }
+.deck-ink[data-tool="eraser"] { cursor: cell; }
+.deck-tools {
+  position: absolute; left: 14px; bottom: 14px; display: flex; gap: 4px; align-items: center; padding: 4px; border-radius: 12px;
+  background: rgba(14, 14, 18, 0.82); border: 1px solid rgba(255, 255, 255, 0.12); backdrop-filter: blur(6px);
+}
+.deck-tools button {
+  font: 600 13px/1 var(--deck-sans); color: #f4f3ef; background: none; border: 0; border-radius: 8px; height: 30px; min-width: 30px; padding: 0 9px; cursor: pointer;
+}
+.deck-tools button:hover { background: rgba(255, 255, 255, 0.1); }
+.deck-tools button[aria-pressed] { background: var(--deck-accent); color: #111; }
+.deck-colors { display: flex; gap: 3px; padding: 0 6px; border-left: 1px solid rgba(255, 255, 255, 0.14); border-right: 1px solid rgba(255, 255, 255, 0.14); }
+.deck-tools .deck-color { min-width: 0; width: 18px; height: 18px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.deck-tools .deck-color[aria-pressed] { border-color: #fff; background-clip: padding-box; }
+.deck[data-tool]:not([data-tool="pointer"]) .deck-hud { opacity: 1; pointer-events: auto; }
+.deck-follower .deck-hud, .deck-follower .deck-overview { display: none !important; }

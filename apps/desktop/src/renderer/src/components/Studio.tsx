@@ -9,7 +9,8 @@ import { HistoryMenu } from "./HistoryMenu";
 import { WebPreview } from "./WebPreview";
 import { VideoStage } from "./VideoStage";
 import { WebStage } from "./WebStage";
-import { SlidesStage } from "./SlidesStage";
+import { SlidesStage, type DeckSlide } from "./SlidesStage";
+import { Presenter } from "./Presenter";
 import { ExportDialog } from "./ExportDialog";
 import { Timeline } from "./Timeline";
 import { TakeEditor } from "./TakeEditor";
@@ -101,6 +102,7 @@ export function Studio(props: {
   const [sceneId, setSceneId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [presenting, setPresenting] = useState<{ slides: DeckSlide[]; external: boolean } | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [layout, setLayout] = useState(loadLayout);
   const [mode, setMode] = useState<Mode>("deck");
@@ -335,6 +337,12 @@ export function Studio(props: {
                   setSelection(part ? { part, kind: info?.tag, sceneId: info?.slide ?? activeScene?.id, source: info?.slide ? { file: allScenes.find((x) => x.id === info.slide)?.file ?? "" } : undefined } : null)
                 }
                 onThumbnails={() => void p.reload()}
+                onPresent={(pos, slides, windowed) => {
+                  void studio.present
+                    .start(manifest.id, { slide: pos?.slide, step: pos?.step, windowed })
+                    .then((r) => setPresenting({ slides, external: r.external }))
+                    .catch((e) => p.setError(errorMessage(e)));
+                }}
                 leading={picker}
               />
             ) : isSlides && !animScenes.length ? (
@@ -464,6 +472,9 @@ export function Studio(props: {
         </div>
       </div>
 
+      {presenting && (
+        <Presenter projectId={manifest.id} title={manifest.title} aspect={manifest.aspect} slides={presenting.slides} external={presenting.external} onEnd={() => setPresenting(null)} />
+      )}
       {shareOpen && <ExportDialog manifest={manifest} onClose={() => setShareOpen(false)} onDeleted={props.onDeleted} />}
     </div>
   );

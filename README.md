@@ -45,6 +45,12 @@ Then keep shaping it: click anything in the preview and say what should change, 
 - **Click to edit.** Select an object in a video, a web animation or a Lab, and the assistant knows exactly which part you mean, down to the source line.
 - **Undo and versions.** Every change is saved. Undo the last one, or restore any earlier version.
 
+**Slides you present**
+- **A deck, step by step.** Animated slides (Manim or manim-web, your choice per deck), HTML slides and interactive slides you can use in front of the class. Every click plays the next step; going back shows the step before.
+- **Presenter view.** The slides go full screen on the projector while your screen shows the live slide, the next step, your notes and a timer. Click and drag on the live picture to use an interactive slide.
+- **Pen, highlighter and laser** over any slide, from the presenter view or the slides themselves (P, H, L, E, C).
+- **Share the deck as one file.** It plays offline in any browser, with the same tools and a speaker view (press S).
+
 **Voice-over that drives the timing**
 - **Script & AI voice.** Write each scene's script yourself or have the assistant write it, then an AI voice that runs on your computer (Kokoro) reads it.
 - **Record your own voice.** The animation plays scene by scene while you read from a teleprompter. It holds at each ◆ cue until you press Space, so the picture moves exactly when you say the word.

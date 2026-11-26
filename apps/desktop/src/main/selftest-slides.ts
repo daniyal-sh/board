@@ -112,6 +112,25 @@ async function deckCase(out: string, engine: SlidesEngine, report: Record<string
     }`,
   );
 
+  // Ink: draw a stroke with the pen on the canvas, then move on (ink belongs to its step).
+  entry.ink = await deckScript<Record<string, unknown>>(
+    id,
+    `async () => {
+      const d = window.__studioDeck;
+      await d.goto("01_title", 0);
+      d.ink.setTool("pen");
+      const c = document.querySelector(".deck-ink");
+      const r = c.getBoundingClientRect();
+      const ev = (type, f) => c.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerId: 1, clientX: r.left + r.width * f, clientY: r.top + r.height * 0.5, buttons: type === "pointerup" ? 0 : 1 }));
+      ev("pointerdown", 0.3); ev("pointermove", 0.4); ev("pointermove", 0.5); ev("pointerup", 0.5);
+      const drawn = d.ink.hasInk();
+      const toolAttr = c.dataset.tool;
+      d.ink.setTool("pointer");
+      await d.next();
+      return { drawn, toolAttr, clearedOnNext: !d.ink.hasInk(), at: d.state().slide + ":" + d.state().step };
+    }`,
+  );
+
   const interact = await deckSession(id, { scene: "03_explore", actions: [{ wait: 200 }] });
   entry.interact = { controls: interact.controls, findings: interact.findings, console: interact.console };
   fs.writeFileSync(join(out, `slides-${engine}-interact.png`), interact.png);
@@ -122,6 +141,50 @@ async function deckCase(out: string, engine: SlidesEngine, report: Record<string
   const exported = await buildDeckExport(id, { mode: "inline" }, (m) => console.log(`[export] ${m}`));
   fs.writeFileSync(join(out, `slides-${engine}.html`), exported.html);
   entry.export = { size: exported.sizeBytes, libraries: exported.libraries };
+  entry.exported = await openExported(join(out, `slides-${engine}.html`));
+}
+
+/** The exported file on its own: the deck with its tools, and the speaker view page. */
+async function openExported(file: string): Promise<Record<string, unknown>> {
+  const { BrowserWindow } = await import("electron");
+  const { pathToFileURL } = await import("node:url");
+  const win = new BrowserWindow({ show: false, width: 1280, height: 720, webPreferences: { offscreen: true, sandbox: true } });
+  const errors: string[] = [];
+  win.webContents.on("console-message", (e) => {
+    const ev = e as unknown as { level: string | number; message: string };
+    if (ev.level === "error" || ev.level === 3) errors.push(ev.message.slice(0, 200));
+  });
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const url = pathToFileURL(file).href;
+  await win.loadURL(url);
+  await wait(2500);
+  const deckOk = await win.webContents.executeJavaScript(`({ ready: Boolean(window.__studioDeck?.ready), tools: document.querySelectorAll(".deck-tools [data-tool]").length, speakerButton: Boolean(document.querySelector('[data-act="speaker"]')) })`);
+  // Press S: the speaker window opens and follows; its buttons drive the deck.
+  let child: Electron.BrowserWindow | null = null;
+  win.webContents.setWindowOpenHandler(() => ({ action: "allow", overrideBrowserWindowOptions: { show: false, webPreferences: { offscreen: true, sandbox: true } } }));
+  win.webContents.on("did-create-window", (w) => (child = w));
+  await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent("keydown", { key: "s" }))`);
+  await wait(4000);
+  const sync: Record<string, unknown> = { opened: Boolean(child) };
+  if (child) {
+    const c = child as Electron.BrowserWindow;
+    const read = () => c.webContents.executeJavaScript(`document.querySelector(".sp-pos")?.textContent + " | " + (document.querySelector(".sp-notes")?.textContent ?? "")`);
+    sync.start = await read();
+    await win.webContents.executeJavaScript(`window.__studioDeck.goto("02_curve", 0)`);
+    await wait(1200);
+    sync.afterGoto = await read();
+    await c.webContents.executeJavaScript(`document.querySelector('[data-act="next"]').click()`);
+    await wait(2500);
+    sync.deckAfterSpeakerNext = await win.webContents.executeJavaScript(`(() => { const s = window.__studioDeck.state(); return s.slide + ":" + s.step; })()`);
+    sync.speakerAfterNext = await read();
+    c.destroy();
+  }
+  await win.loadURL("about:blank");
+  await win.loadURL(`${url}#speaker`);
+  await wait(1500);
+  const speaker = await win.webContents.executeJavaScript(`({ view: Boolean(document.querySelector(".sp")), frames: document.querySelectorAll(".sp iframe").length, notes: document.querySelector(".sp-notes")?.textContent?.slice(0, 80) })`);
+  win.destroy();
+  return { deck: deckOk, sync, speaker, errors };
 }
 
 export async function slidesCase(out: string, report: Record<string, unknown>): Promise<void> {
