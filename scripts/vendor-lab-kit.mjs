@@ -29,6 +29,8 @@ fs.writeFileSync(
     'import "matter-js"; import "gsap";',
     'import "three"; import "three/examples/jsm/controls/OrbitControls.js";',
     'import "manim-web";',
+    'import "p5"; import "roughjs";',
+    'import "./src/base.css";',
   ].join("\n"),
 );
 const result = await esbuild.build({

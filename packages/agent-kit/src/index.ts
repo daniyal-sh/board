@@ -59,7 +59,7 @@ The teacher is an expert in their subject, not a programmer. They see a live pre
    - \`get_selection\` for the part the teacher selected; \`get_console\` for runtime errors.
 3. You can also run commands, read web pages and download files (for example, a PDF the teacher refers to) into the project folder. The teacher chooses how much you may do: some actions show them an approval card first. If something is declined, carry on without it or explain briefly what you need.
 4. When the teacher has selected something, their message includes its part name. Change that part, and keep everything else as it was unless asked.
-${ctx.kind === "lab" ? "5. A Lab is one page. Give meaningful parts a data-part name; there's no need to split it into sections." : "5. Keep the storyboard tidy: one scene per file, numbered in play order (01_, 02_, ...)."}
+${ctx.kind === "lab" ? "5. A Lab is one page, in whatever form fits the idea (see the guide). Give meaningful parts a data-part name." : "5. Keep the storyboard tidy: one scene per file, numbered in play order (01_, 02_, ...)."}
 6. Your work is saved as a version after each turn; the teacher can undo. Don't create backup copies of files.
 `;
 }
@@ -102,18 +102,21 @@ export function templates(kind: ProjectKind, title: string): Record<string, stri
   <title>${escapeHtml(title)}</title>
 </head>
 <body>
-  <main class="lab">
+  <main>
     <h1 data-part="title">${escapeHtml(title)}</h1>
-    <p class="lead" data-part="intro">Getting things ready…</p>
+    <p data-part="intro">Getting things ready…</p>
   </main>
   <script type="module" src="./main.ts"></script>
 </body>
 </html>
 `,
-      "lab/main.ts": `import "@studio/lab-kit";
+      "lab/main.ts": `// Colour tokens (light and dark) and a small reset. Swap for "@studio/lab-kit" to get its sliders,
+// checks and house style, or remove it and style the page yourself.
+import "@studio/lab-kit/base.css";
 import "./style.css";
 `,
-      "lab/style.css": `/* Page-specific styles. The lab kit already provides the base look. */
+      "lab/style.css": `/* Page styles. Design the page for the idea: see .studio/guide/lab.md. */
+main { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
 `,
     };
   }

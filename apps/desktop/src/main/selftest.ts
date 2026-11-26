@@ -61,6 +61,35 @@ export default async function (scene: Scene) {
 `,
 };
 
+/** A Lab without the lab kit: base tokens only, a p5 sketch and a Rough.js diagram. */
+const SAMPLE_FREE_LAB = {
+  "lab/index.html": `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sketchy orbits</title></head>
+<body><main>
+  <h1 data-part="title">Sketchy orbits</h1>
+  <div id="sim" data-part="simulation"></div>
+  <svg id="diagram" viewBox="0 0 600 200" data-part="diagram" role="img" aria-label="Hand-drawn sun and planet"></svg>
+</main><script type="module" src="./main.ts"></script></body></html>`,
+  "lab/main.ts": `import "@studio/lab-kit/base.css";
+import "./style.css";
+import p5 from "p5";
+import rough from "roughjs";
+const host = document.querySelector<HTMLElement>("#sim")!;
+new p5((p: p5) => {
+  p.setup = () => { p.createCanvas(host.clientWidth, 240); };
+  p.draw = () => {
+    p.background(14, 14, 18);
+    const a = p.millis() / 800;
+    p.noStroke(); p.fill("#FFE14D"); p.circle(p.width / 2, 120, 40);
+    p.fill("#58C4DD"); p.circle(p.width / 2 + 90 * Math.cos(a), 120 + 90 * Math.sin(a) * 0.9, 16);
+  };
+}, host);
+const svg = document.querySelector<SVGSVGElement>("#diagram")!;
+const rc = rough.svg(svg);
+svg.append(rc.circle(150, 100, 110, { seed: 4, fill: "#FFE14D", fillStyle: "hachure", stroke: "currentColor" }), rc.circle(420, 100, 50, { seed: 5, fill: "#58C4DD", fillStyle: "cross-hatch", stroke: "currentColor" }), rc.line(205, 100, 395, 100, { seed: 6, stroke: "currentColor" }));
+`,
+  "lab/style.css": `main { max-width: 720px; margin: 0 auto; padding: 24px 16px; } #diagram { width: 100%; color: var(--lab-ink); }`,
+};
+
 function writeFiles(dir: string, files: Record<string, string>): void {
   for (const [rel, content] of Object.entries(files)) {
     fs.mkdirSync(join(dir, rel, ".."), { recursive: true });
@@ -68,20 +97,20 @@ function writeFiles(dir: string, files: Record<string, string>): void {
   }
 }
 
-async function buildCase(out: string, kind: ProjectKind, files: Record<string, string>, report: Record<string, unknown>) {
-  const p = await projects.create({ kind, prompt: `Selftest ${kind}`, length: "short", title: `Selftest ${kind} ${Date.now()}` });
+async function buildCase(out: string, kind: ProjectKind, files: Record<string, string>, report: Record<string, unknown>, name: string = kind) {
+  const p = await projects.create({ kind, prompt: `Selftest ${name}`, length: "short", title: `Selftest ${name} ${Date.now()}` });
   writeFiles(p.dir, files);
   const res = await buildPreview(p.manifest.id);
   const entry: Record<string, unknown> = { projectId: p.manifest.id, dir: p.dir, ok: res.ok, errors: res.errors, size: res.sizeBytes, libraries: res.libraries };
   if (res.ok) {
     const exported = await buildExport(p.manifest.id);
-    fs.writeFileSync(join(out, `${kind}.html`), exported.html);
+    fs.writeFileSync(join(out, `${name}.html`), exported.html);
     entry.exportSize = exported.sizeBytes;
     entry.scenes = projects.manifest(p.manifest.id).scenes;
     const viewports = kind === "lab" ? (["desktop", "phone"] as const) : (["desktop"] as const);
     for (const vp of viewports) {
       const r = await inspectPreview(p.manifest.id, { viewport: vp, times: kind === "web" ? [1, 3.5] : [1.5] });
-      r.frames.forEach((f, i) => fs.writeFileSync(join(out, `${kind}-${vp}-${i}.png`), f.png));
+      r.frames.forEach((f, i) => fs.writeFileSync(join(out, `${name}-${vp}-${i}.png`), f.png));
       entry[`console_${vp}`] = r.console;
     }
     if (kind === "web") {
@@ -92,7 +121,7 @@ async function buildCase(out: string, kind: ProjectKind, files: Record<string, s
       entry.scenesAfter = projects.manifest(p.manifest.id).scenes;
     }
   }
-  report[kind] = entry;
+  report[name] = entry;
 }
 
 async function agentCase(out: string, provider: AgentProviderId, report: Record<string, unknown>) {
@@ -353,6 +382,7 @@ export async function runSelftest(out: string): Promise<void> {
     if (mode === "build" || mode === "all") {
       await buildCase(out, "lab", SAMPLE_LAB, report);
       await buildCase(out, "web", SAMPLE_WEB, report);
+      await buildCase(out, "lab", SAMPLE_FREE_LAB, report, "free-lab");
     }
     if (mode === "voice" || mode === "all") await voiceCase(out, report);
     if (mode === "video" || mode === "all") await videoCase(out, report);

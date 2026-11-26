@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./math": "./src/math.ts",
-    "./lab-kit.css": "./src/lab-kit.css"
+    "./lab-kit.css": "./src/lab-kit.css",
+    "./base.css": "./src/base.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -20,6 +21,8 @@
     "katex": "^0.19.1",
     "manim-web": "^0.42.0",
     "matter-js": "^0.20.0",
+    "p5": "^2.4.0",
+    "roughjs": "^4.6.6",
     "three": "^0.187.0"
   },
   "devDependencies": {
