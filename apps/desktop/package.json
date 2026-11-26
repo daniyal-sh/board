@@ -30,6 +30,7 @@
     "gifenc": "1.0.3",
     "isomorphic-git": "^1.44.16",
     "kokoro-js": "^1.2.1",
+    "pptxgenjs": "^4.0.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zod": "^4.6.7"

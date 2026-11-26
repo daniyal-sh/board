@@ -142,6 +142,19 @@ async function deckCase(out: string, engine: SlidesEngine, report: Record<string
   fs.writeFileSync(join(out, `slides-${engine}.html`), exported.html);
   entry.export = { size: exported.sizeBytes, libraries: exported.libraries };
   entry.exported = await openExported(join(out, `slides-${engine}.html`));
+  const { exportDeckHtml, exportDeckPdf, exportDeckPptx } = await import("./build/deck-export");
+  const log = (m: string) => console.log(`[export] ${m}`);
+  entry.pdf = await exportDeckPdf(id, join(out, `slides-${engine}.pdf`), { perSlide: false }, log);
+  entry.pptx = await exportDeckPptx(id, join(out, `slides-${engine}.pptx`), { perSlide: false }, log);
+  entry.pptxPerSlide = await exportDeckPptx(id, join(out, `slides-${engine}-per-slide.pptx`), { perSlide: true }, log);
+  entry.html = await exportDeckHtml(id, join(out, `slides-${engine}-shared.html`), log);
+  if (engine === "video") {
+    // As if the clips were too large for one file: the page plus a folder of clips.
+    fs.mkdirSync(join(out, "folder-export"), { recursive: true });
+    entry.folder = await exportDeckHtml(id, join(out, "folder-export", "deck.html"), log, 1);
+    entry.folderFiles = fs.readdirSync(join(out, "folder-export"), { recursive: true });
+    entry.folderOpened = await openExported(join(out, "folder-export", "deck.html"));
+  }
 }
 
 /** The exported file on its own: the deck with its tools, and the speaker view page. */

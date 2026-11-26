@@ -29,7 +29,7 @@ Board is an open-source desktop app for teachers. Describe an idea, or paste a s
 | **Video** | [Manim Community](https://github.com/ManimCommunity/manim), rendered on your computer | MP4 with captions, or a GIF · 16:9 or 9:16 |
 | **Web animation** | [manim-web](https://github.com/maloyan/manim-web), plays in any browser | One HTML file, or a GIF · 16:9 or 9:16 |
 | **Lab** | An interactive page in whatever form fits: a simulation, an explorable essay, a puzzle, sliders and checks | One HTML file that works offline |
-| **Slides** | A deck you present step by step: Manim or manim-web animations, HTML and interactive slides | One HTML file you present from any browser · 16:9 or 9:16 |
+| **Slides** | A deck you present step by step: Manim or manim-web animations, HTML and interactive slides | One HTML file you present from any browser, PDF or PowerPoint · 16:9 or 9:16 |
 
 Then keep shaping it: click anything in the preview and say what should change, add a voice-over, and go back to any earlier version.
 
@@ -49,7 +49,7 @@ Then keep shaping it: click anything in the preview and say what should change, 
 - **A deck, step by step.** Animated slides (Manim or manim-web, your choice per deck), HTML slides and interactive slides you can use in front of the class. Every click plays the next step; going back shows the step before.
 - **Presenter view.** The slides go full screen on the projector while your screen shows the live slide, the next step, your notes and a timer. Click and drag on the live picture to use an interactive slide.
 - **Pen, highlighter and laser** over any slide, from the presenter view or the slides themselves (P, H, L, E, C).
-- **Share the deck as one file.** It plays offline in any browser, with the same tools and a speaker view (press S).
+- **Share the deck as one file.** It plays offline in any browser, with the same tools and a speaker view (press S). Or export a PDF handout or a PowerPoint file with your speaker notes.
 
 **Voice-over that drives the timing**
 - **Script & AI voice.** Write each scene's script yourself or have the assistant write it, then an AI voice that runs on your computer (Kokoro) reads it.

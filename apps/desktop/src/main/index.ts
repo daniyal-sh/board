@@ -15,6 +15,7 @@ import { ensureLabKit, paths } from "./paths";
 import { projects } from "./projects";
 import { setMainWindow } from "./window";
 import { presentCommand, presentInput, startPresenting, stopPresenting } from "./present";
+import { exportDeckHtml, exportDeckPdf, exportDeckPptx } from "./build/deck-export";
 import { exportFinalVideo, exportVideoGif } from "./video/export";
 import { setupVideoEnv, videoEnvStatus, manimEnv, runtime } from "./video/env";
 import { video } from "./video/renderer";
@@ -120,6 +121,16 @@ function registerIpc(): void {
   });
   handle(IPC.buildExportHtml, async (id: string) => {
     const m = projects.manifest(id);
+    if (m.kind === "slides") {
+      const res = await dialog.showSaveDialog(win!, {
+        title: "Save the slides as a web page",
+        defaultPath: join(app.getPath("downloads"), `${projects.dir(id).split(/[\\/]/).pop()}.html`),
+        filters: [{ name: "Web page", extensions: ["html"] }],
+      });
+      if (res.canceled || !res.filePath) return null;
+      const r = await exportDeckHtml(id, res.filePath, (msg) => win?.webContents.send(IPC.videoProgress, msg));
+      return { path: r.path, folder: r.folder };
+    }
     const built = await buildExport(id);
     const res = await dialog.showSaveDialog(win!, {
       title: "Save as a single HTML file",
@@ -133,6 +144,22 @@ function registerIpc(): void {
   });
 
   handle(IPC.buildDeck, (id: string) => buildDeckPreview(id, (m) => win?.webContents.send(IPC.videoProgress, m)));
+  handle(IPC.buildExportDeck, async (id: string, format: "pdf" | "pptx", opts: { perSlide: boolean }) => {
+    const name = projects.dir(id).split(/[\\/]/).pop();
+    const res = await dialog.showSaveDialog(win!, {
+      title: format === "pdf" ? "Save the slides as a PDF" : "Save the slides as a PowerPoint file",
+      defaultPath: join(app.getPath("documents"), `${name}.${format}`),
+      filters: [format === "pdf" ? { name: "PDF", extensions: ["pdf"] } : { name: "PowerPoint", extensions: ["pptx"] }],
+    });
+    if (res.canceled || !res.filePath) return null;
+    const progress = (msg: string) => win?.webContents.send(IPC.videoProgress, msg);
+    if (format === "pdf") {
+      const r = await exportDeckPdf(id, res.filePath, opts, progress);
+      return { path: r.path, count: r.pages };
+    }
+    const r = await exportDeckPptx(id, res.filePath, opts, progress);
+    return { path: r.path, count: r.slides };
+  });
   handle(IPC.buildThumbs, async (id: string) => {
     const kind = projects.manifest(id).kind;
     if (kind === "web") await webSceneThumbnails(id);

@@ -154,9 +154,9 @@ async function frames(projectId: string, sceneId: string | undefined, times: num
   }
 }
 
-/** A draft is out of date when its scene file or narration changed after it was rendered. */
-function draftIsStale(dir: string, id: string): boolean {
-  const mp4 = join(dir, "build", "scenes", `${id}.mp4`);
+/** A render is out of date when its scene file or narration changed after it was made. */
+function draftIsStale(dir: string, id: string, quality: Quality = "draft"): boolean {
+  const mp4 = join(dir, "build", quality === "draft" ? "scenes" : "final", `${id}.mp4`);
   if (!fs.existsSync(mp4)) return true;
   const rendered = fs.statSync(mp4).mtimeMs;
   const inputs = [join(dir, "scenes", `${id}.py`), join(dir, "build", "narration", `${id}.json`)];
@@ -244,6 +244,8 @@ async function renderStale(projectId: string, progress: (message: string) => voi
 
 export const video = {
   renderStale,
+  /** The high-quality render of a scene is missing or older than its source. */
+  finalIsStale: (projectId: string, sceneId: string) => draftIsStale(projects.dir(projectId), sceneId, "final"),
   renderPreview: (projectId: string, sceneId?: string) => render(projectId, sceneId, "draft"),
   renderFinal: (projectId: string, sceneId: string) => render(projectId, sceneId, "final"),
   fullPreview,

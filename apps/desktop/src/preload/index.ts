@@ -42,6 +42,7 @@ const api: StudioApi = {
     preview: (id, scene) => invoke(IPC.buildPreview, id, scene),
     deck: (id) => invoke(IPC.buildDeck, id),
     exportHtml: (id) => invoke(IPC.buildExportHtml, id),
+    exportDeck: (id, format, opts) => invoke(IPC.buildExportDeck, id, format, opts),
     copyHtml: (id) => invoke(IPC.buildCopyHtml, id),
     thumbnails: (id) => invoke(IPC.buildThumbs, id),
   },

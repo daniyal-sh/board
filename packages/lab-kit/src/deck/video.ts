@@ -66,9 +66,26 @@ export function createVideoAnimator(clips: VideoClip[]): Animator {
       const to = Math.min(t, Math.max(0, (v.duration || t) - 0.001));
       if (Math.abs(v.currentTime - to) < 0.0005) return;
       return new Promise<void>((r) => {
-        const done = () => r();
-        v.addEventListener("seeked", done, { once: true });
-        setTimeout(done, 1500);
+        let finished = false;
+        const done = () => {
+          if (finished) return;
+          finished = true;
+          r();
+        };
+        // Resolve once the frame at the new time is on screen (pictures and thumbnails need it),
+        // not just when the seek is done.
+        v.addEventListener(
+          "seeked",
+          () => {
+            const rvfc = (v as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback;
+            if (rvfc) {
+              rvfc.call(v, done);
+              setTimeout(done, 400);
+            } else done();
+          },
+          { once: true },
+        );
+        setTimeout(done, 2000);
         v.currentTime = to;
       });
     },

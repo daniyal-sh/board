@@ -98,8 +98,8 @@ export async function buildExport(projectId: string): Promise<{ html: string; si
 
 // ---------------------------------------------------------------- slides
 
-export function deckUrl(projectId: string, query = ""): string {
-  return `${PREVIEW_SCHEME}://${projectId}/deck.html?v=${Date.now()}${query ? `&${query}` : ""}`;
+export function deckUrl(projectId: string, query = "", page = "deck.html"): string {
+  return `${PREVIEW_SCHEME}://${projectId}/${page}?v=${Date.now()}${query ? `&${query}` : ""}`;
 }
 
 /**
@@ -125,7 +125,7 @@ export async function buildDeckExport(projectId: string, media: DeckMedia, progr
   const dir = projects.dir(projectId);
   const m = projects.manifest(projectId);
   if (animationKind(m) === "video") {
-    const clips = m.scenes.filter((s) => s.file.endsWith(".py"));
+    const clips = m.scenes.filter((s) => s.file.endsWith(".py") && video.finalIsStale(projectId, s.id));
     for (const [i, s] of clips.entries()) {
       progress(`Rendering “${s.title}” in high quality (${i + 1} of ${clips.length})…`);
       const r = await video.renderFinal(projectId, s.id);
@@ -542,11 +542,11 @@ function deckViewport(projectId: string): { width: number; height: number } {
   return projects.manifest(projectId).aspect === "vertical" ? { width: 405, height: 720 } : { width: 1280, height: 720 };
 }
 
-async function loadDeck(win: BrowserWindow, projectId: string, query: string): Promise<DeckSlideInfo[]> {
-  await win.loadURL(deckUrl(projectId, query)).catch(async (e: Error) => {
+async function loadDeck(win: BrowserWindow, projectId: string, query: string, page = "deck.html"): Promise<DeckSlideInfo[]> {
+  await win.loadURL(deckUrl(projectId, query, page)).catch(async (e: Error) => {
     if (!/ERR_(FAILED|ABORTED)/.test(e.message)) throw e;
     await new Promise((r) => setTimeout(r, 300));
-    await win.loadURL(deckUrl(projectId, query));
+    await win.loadURL(deckUrl(projectId, query, page));
   });
   for (let i = 0; i < 100; i++) {
     const slides = (await win.webContents.executeJavaScript("window.__studioDeck?.ready ? window.__studioDeck.slides : null").catch(() => null)) as DeckSlideInfo[] | null;
@@ -584,6 +584,48 @@ export function deckSteps(projectId: string, opts: { scene?: string; max?: numbe
     } finally {
       sink = null;
       void win.loadURL("about:blank").catch(() => {});
+    }
+  });
+  queue = run.catch(() => undefined);
+  return run;
+}
+
+export interface DeckPicture {
+  slide: string;
+  title: string;
+  step: number;
+  steps: number;
+  notes: string;
+  png: Buffer;
+}
+
+/**
+ * Full-size pictures of the deck for PDF and PowerPoint: every step (or only the end of each
+ * slide) of build/<page>, at the slide canvas size.
+ */
+export function deckPictures(projectId: string, opts: { page: string; perSlide: boolean; progress?: (m: string) => void }): Promise<DeckPicture[]> {
+  const run = queue.then(async () => {
+    const win = inspectorWindow();
+    const vertical = projects.manifest(projectId).aspect === "vertical";
+    const size = vertical ? { width: 1080, height: 1920 } : { width: 1920, height: 1080 };
+    win.setContentSize(size.width, size.height);
+    try {
+      const slides = await loadDeck(win, projectId, "still=1", opts.page);
+      if (!slides.length) throw new Error("The slides didn't load. Open the Slides tab to see what's wrong.");
+      const steps = slides.flatMap((s) => (opts.perSlide ? [{ s, k: s.steps - 1 }] : Array.from({ length: s.steps }, (_, k) => ({ s, k }))));
+      const out: DeckPicture[] = [];
+      for (const [n, { s, k }] of steps.entries()) {
+        opts.progress?.(`Taking pictures of the slides (${n + 1} of ${steps.length})…`);
+        await win.webContents.executeJavaScript(`window.__studioDeck.goto(${JSON.stringify(s.id)}, ${k})`).catch(() => {});
+        await new Promise((r) => setTimeout(r, s.type === "html" ? 450 : 200));
+        const img = await win.webContents.capturePage();
+        const sized = img.getSize().width === size.width ? img : img.resize(size);
+        out.push({ slide: s.id, title: s.title, step: k, steps: s.steps, notes: s.notes, png: sized.toPNG() });
+      }
+      return out;
+    } finally {
+      void win.loadURL("about:blank").catch(() => {});
+      win.setContentSize(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
     }
   });
   queue = run.catch(() => undefined);
